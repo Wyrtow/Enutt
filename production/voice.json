@@ -1,0 +1,9 @@
+{
+  "_note": "Голоса канала «Один герой». Утверждено пользователем 2026-11-12. Не менять между роликами.",
+  "model_id": "eleven_v4",
+  "MALE":  {"voice_id": "VlCYpQzyafIQIhmvxR2w", "name": "Pavel - Warm Conversational Narrator", "role": "рассказ Марка + реплики всех мужчин"},
+  "FEMALE": {"voice_id": "R38XE2306Hb4iCupQ3X3", "name": "Kate — Multilingual Storyteller", "role": "реплики всех женщин"},
+  "GIRL":  {"voice_id": "RxivyypsDodFBfmDDOZF", "name": "Mila Svetlova - Russian Fairy Voice", "role": "реплики всех девочек", "prefix_tag": "[childlike voice]"},
+  "BOY":   {"voice_id": "RD1wW20GjG2W8Fc8vVvm", "name": "El - Calm & Friendly - Character", "role": "реплики всех мальчиков", "prefix_tag": "[young boy voice]", "status": "выбран Claude, ждёт подтверждения на слух"},
+  "flow_id_casting": "yycer2ALG2zOqtBKYi0T"
+}
