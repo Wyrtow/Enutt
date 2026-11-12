@@ -46,7 +46,15 @@ for i, s in enumerate(segs):
         cur = max(cur, b)
     if d - cur > 0.05: speech.append((cur, d))
     if not speech: speech = [(0.0, d)]
-    text = re.sub(r'[«»]', '', s['sub'].replace('\n', ' '))
+    rawt = s['sub'].replace('\n', ' ')
+    qflags, inq = [], False
+    for tok in rawt.split():
+        o = tok.count('«') > tok.count('»'); c = tok.count('»') > tok.count('«')
+        if '«' in tok: inq = True
+        qflags.append(1 if inq else 0)
+        if '»' in tok: inq = False
+    text = re.sub(r'[«»]', '', rawt)
+    qi = 0
     sents = [x for x in re.split(r'(?<=[.!?…])\s+', text) if x.strip()]
     # сопоставляем предложения речевым кускам по пропорции слогов (жадно)
     tot_syl = sum(syl(w) for w in text.split()) or 1
@@ -70,7 +78,8 @@ for i, s in enumerate(segs):
         for w in ws:
             wd = syl(w) / max(1, sum(syl(v) for v in ws)) * (s1 - s0)
             m = owner[min(wi, len(owner) - 1)]; wi += 1
-            words.append({'w': w, 's': round(start + real(cs), 3), 'e': round(start + real(cs + wd), 3), 'v': s['voice'], 'seg': m['id'], 'scene': m['scene']})
+            words.append({'w': w, 's': round(start + real(cs), 3), 'e': round(start + real(cs + wd), 3), 'v': s['voice'], 'seg': m['id'], 'scene': m['scene'], 'q': qflags[min(qi, len(qflags) - 1)]})
+            qi += 1
             cs += wd
     for m in s['members']:
         mw = [w for w in words if w['seg'] == m['id']]

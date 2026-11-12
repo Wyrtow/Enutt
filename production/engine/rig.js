@@ -167,7 +167,7 @@
                         : leg(legA, hipA, false, s.pitchA) + leg(legB, hipB, false, s.pitchB);
     const body = `${shadow}${farArm}${legs}${torso}${scarf}${nearArms}${face}${prop}`;
     const sc = (s.sc || 1) * (L.size || 1);
-    const lie = s.lie ? ` rotate(${-82 * F} 0 -40)` : '';
+    const lie = s.lie ? ` translate(0,${(300 * K).toFixed(1)}) rotate(${-84 * F} ${bx.toFixed(1)} ${hipY.toFixed(1)})` : '';
     const ghost = s.ghost ? ` filter="url(#ghost)"` : '';
     return `<g transform="translate(${(s.x || 0).toFixed(1)},${(s.y || 0).toFixed(1)}) scale(${sc.toFixed(3)})${lie}" opacity="${(s.alpha ?? 1).toFixed(2)}"${ghost}>${body}</g>`;
   }
