@@ -61,6 +61,9 @@ const F = (t) => Math.round(t * FPS);
 const bgs = {}, shots = [], pills = [], cards = [], inserts = [], blacks = [], flashes = [], quakes = [];
 const bgKey = (loc, opt) => { const k = loc + '_' + crypto.createHash('md5').update(JSON.stringify(opt)).digest('hex').slice(0, 8); bgs[k] = { loc, opt }; return k; };
 const GROUND = 1035;
+// границы фраз: смена плана — только на конце предложения/паузе (по тексту), ±3.2 с
+const sentEnds = []; for (let i = 0; i < words.length; i++) { const w = words[i], nx = words[i + 1]; const gap = nx ? nx.s - w.e : 9; if (/[.!?…]["»]?$/.test(w.w) || gap > .45) sentEnds.push(F(shift(w.e) + Math.min(.25, gap / 2))); }
+const snapB = (f, a, b) => { if (f <= a || f >= b) return f; let best = f, bd = F(3.2); for (const e of sentEnds) { const d = Math.abs(e - f); if (d < bd && e - a >= F(2.5) && b - e >= F(2.5)) { bd = d; best = e; } } return best; };
 const FR = { wide: [1.0, 1.05], med: [1.38, 1.46], close: [1.85, 1.95], xwide: [0.92, 0.98] };
 for (let i = 0; i < scenes.length; i++) {
   const s = scenes[i], c = SC[s.id] || {};
@@ -75,12 +78,23 @@ for (let i = 0; i < scenes.length; i++) {
   const key0 = bgKey(c.loc, c.opt || {});
   // разбиение на планы ~6–10 с, кадрировка по кругу
   const plan = c.shots || null, durS = (b - a) / FPS; const lastCast = {};
-  const n = plan ? plan.length : Math.max(1, Math.round(durS / (c.shotLen || 8)));
+  let P = plan ? plan.map(q => ({ ...q })) : Array.from({ length: Math.max(1, Math.round(durS / (c.shotLen || 9))) }, () => ({}));
+  const wsum0 = P.reduce((x, q) => x + (q.w || 1), 0); let acc = 0;
+  P.forEach(q => { q._a = snapB(a + Math.round((b - a) * acc / wsum0), a, b); acc += (q.w || 1); q._b = snapB(a + Math.round((b - a) * acc / wsum0), a, b); });
+  P[0]._a = a; P[P.length - 1]._b = b; for (let j = 1; j < P.length; j++) P[j]._a = P[j - 1]._b;
+  // склейки не чаще, чем раз в MIN с: короткий план сливаем с соседом (остаётся более «весомый»)
+  const MIN = F(c.minShot || 6);
+  while (P.length > 1) {
+    let j = -1, sh = 1e9; P.forEach((q, i) => { const L = q._b - q._a; if (L < MIN && L < sh) { sh = L; j = i; } }); if (j < 0) break;
+    const nb = j === 0 ? 1 : j === P.length - 1 ? j - 1 : ((P[j - 1]._b - P[j - 1]._a) <= (P[j + 1]._b - P[j + 1]._a) ? j - 1 : j + 1);
+    const lo = Math.min(j, nb), hi = Math.max(j, nb), keep = (P[j].w || 1) > (P[nb].w || 1) ? P[j] : P[nb];
+    if (P[j].cast && !keep.cast && (P[j].loc || c.loc) === (keep.loc || c.loc)) keep.cast = P[j].cast;
+    const m = { ...keep, _a: P[lo]._a, _b: P[hi]._b }; P.splice(lo, 2, m);
+  }
+  const n = P.length;
   for (let k = 0; k < n; k++) {
-    const ws = plan ? plan.map(q => q.w || 1) : null, wsum = ws ? ws.reduce((x, y) => x + y, 0) : n;
-    const cum = (j) => ws ? ws.slice(0, j).reduce((x, y) => x + y, 0) / wsum : j / n;
-    const sa = a + Math.round((b - a) * cum(k)), sb = a + Math.round((b - a) * cum(k + 1));
-    const p = plan ? plan[k] : {};
+    const sa = P[k]._a, sb = P[k]._b;
+    const p = P[k];
     const frame = p.frame || (c.frames || ['wide', 'med', 'close', 'med'])[k % (c.frames || [1, 2, 3, 4]).length] || 'wide';
     const locK = p.loc || c.loc; const cast = (p.cast || (plan ? lastCast[locK] : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast[locK] = p.cast;
     const focus = cast.find(x => x.id === (p.focus || c.focus)) || cast[0];
@@ -97,31 +111,31 @@ for (let i = 0; i < scenes.length; i++) {
     const pool = MOVES[fkey] || MOVES.wide;
     let mv = p.move || c.move || pool[(shots.length * 3 + k) % pool.length];
     if (shots.length && shots[shots.length - 1].move === mv) mv = pool[(pool.indexOf(mv) + 1) % pool.length];
-    const sec = (sb - sa) / FPS, T = Math.min(1.6, Math.max(.6, sec / 6)); // длиннее план — больше путь
+    const sec = (sb - sa) / FPS, T = Math.min(1.2, Math.max(.6, sec / 8)) * .38; // мягко: малый путь, медленно
     const zs = z0, zm = (z0 + z1) / 2;
     let from, to;
     switch (mv) {
       case 'truckL': from = [cx + 130 * T, cy, zs + .02]; to = [cx - 130 * T, cy, zs + .05]; break;
       case 'truckR': from = [cx - 130 * T, cy, zs + .02]; to = [cx + 130 * T, cy, zs + .05]; break;
-      case 'craneDown': from = [cx, cy - 110 * T, zs + .06]; to = [cx, cy + 20, zs]; break;
-      case 'craneUp': from = [cx, cy + 40, zs]; to = [cx, cy - 100 * T, zs + .06]; break;
-      case 'pullOut': from = [cx, cy - 20, zs + .16]; to = [cx, cy, zs]; break;
-      case 'arcL': from = [cx + 150 * T, cy, zs + .1]; to = [cx - 60 * T, cy - 30, zs + .02]; break;
-      case 'arcR': from = [cx - 150 * T, cy, zs + .1]; to = [cx + 60 * T, cy - 30, zs + .02]; break;
-      case 'pushIn': from = [cx, cy + 10, zs]; to = [cx, cy - 10, z1 + .06 * T]; break;
-      case 'pushArcR': from = [cx - 90 * T, cy + 10, zs]; to = [cx + 40 * T, cy - 8, z1 + .05 * T]; break;
-      case 'pushArcL': from = [cx + 90 * T, cy + 10, zs]; to = [cx - 40 * T, cy - 8, z1 + .05 * T]; break;
-      case 'pushSlow': from = [cx, cy, zs]; to = [cx, cy - 6, z1 + .04]; break;
-      case 'driftL': from = [cx + 40, cy, zm]; to = [cx - 40, cy, zm + .03]; break;
-      case 'driftR': from = [cx - 40, cy, zm]; to = [cx + 40, cy, zm + .03]; break;
+      case 'craneDown': from = [cx, cy - 110 * T, zs + .03]; to = [cx, cy + 8, zs]; break;
+      case 'craneUp': from = [cx, cy + 15, zs]; to = [cx, cy - 100 * T, zs + .03]; break;
+      case 'pullOut': from = [cx, cy - 8, zs + .07]; to = [cx, cy, zs]; break;
+      case 'arcL': from = [cx + 150 * T, cy, zs + .04]; to = [cx - 60 * T, cy - 10, zs + .01]; break;
+      case 'arcR': from = [cx - 150 * T, cy, zs + .04]; to = [cx + 60 * T, cy - 10, zs + .01]; break;
+      case 'pushIn': from = [cx, cy + 10, zs]; to = [cx, cy - 10, z1 + .03]; break;
+      case 'pushArcR': from = [cx - 90 * T, cy + 10, zs]; to = [cx + 40 * T, cy - 8, z1 + .025]; break;
+      case 'pushArcL': from = [cx + 90 * T, cy + 10, zs]; to = [cx - 40 * T, cy - 8, z1 + .025]; break;
+      case 'pushSlow': from = [cx, cy, zs]; to = [cx, cy - 6, z1 + .02]; break;
+      case 'driftL': from = [cx + 18, cy, zm]; to = [cx - 18, cy, zm + .015]; break;
+      case 'driftR': from = [cx - 18, cy, zm]; to = [cx + 18, cy, zm + .015]; break;
       default: from = [cx - 40, cy, z0]; to = [cx + 40, cy, z1];
     }
     if (p.rise) to[1] -= p.rise;
     const roll = p.roll || c.roll || 0;
     const dof = p.dof ?? (frame === 'med' || frame === 'close' ? 1 : 0);
     shots.push({ a: sa, b: sb, bg: key, key: key + ':' + i + ':' + k + (dof ? ':d' : '') + (frame === 'wide' || frame === 'xwide' ? '' : ':n'), move: mv, dof, nofg: !(frame === 'wide' || frame === 'xwide'), cast, fx: p.fx0 ? { ...p.fx } : { ...(c.fx || {}), ...(p.fx || {}) }, rim: c.rim,
-      cam: { from: [...from, roll], to: [...to, roll], ease: p.ease || 'smooth' },
-      xin: (k === 0 && c.cut) ? 0 : 10, overlay: c.overlay || '' });
+      cam: { from: [...from, roll], to: [...to, roll], ease: p.ease || 'soft' },
+      xin: (k === 0 && c.cut) ? 0 : 18, overlay: c.overlay || '' });
   }
 }
 // для немых сцен без своего фона (карточки, чернота) продлеваем предыдущий план

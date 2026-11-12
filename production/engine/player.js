@@ -6,7 +6,7 @@
   let TL, stages = [], imgCache = {};
   const $ = (h) => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
   const ih = (n) => { n = (n ^ 61) ^ (n >>> 16); n = Math.imul(n, 9); n ^= n >>> 4; n = Math.imul(n, 0x27d4eb2d); n ^= n >>> 15; return (n >>> 0) / 4294967295; };
-  const ease = (u, e) => e === 'lin' ? clamp01(u) : smoother(u);
+  const ease = (u, e) => { u = clamp01(u); if (e === 'lin') return u; if (e === 'soft') return .45 * u + .55 * (.5 - .5 * Math.cos(Math.PI * u)); return smoother(u); };
 
   function init(tl) {
     TL = tl;
@@ -62,7 +62,7 @@
     let x = lerp(c.from[0], c.to[0], e), y = lerp(c.from[1], c.to[1], e), z = lerp(c.from[2], c.to[2], e), roll = lerp(c.from[3] || 0, c.to[3] || 0, e);
     // «дыхание» камеры: очень медленные плавные колебания (не тряска)
     const tt = f / TL.fps;
-    x += 4 * Math.sin(tt * 0.61) + 2 * Math.sin(tt * 1.37); y += 3 * Math.sin(tt * 0.47 + 1) + 1.5 * Math.sin(tt * 1.13); roll += 0.12 * Math.sin(tt * 0.33);
+    x += 2.2 * Math.sin(tt * 0.31) + .6 * Math.sin(tt * .73); y += 1.6 * Math.sin(tt * 0.27 + 1) + .5 * Math.sin(tt * .61); roll += 0.04 * Math.sin(tt * 0.19);
     // толчки: смена знака каждый кадр, затухание 7 кадров; землетрясение — серия + низкочастотная качка
     for (const q of TL.quakes) {
       const d = f - q.f;

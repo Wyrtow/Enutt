@@ -16,7 +16,7 @@ module.exports = {
   _tail: 1.4,
   // ===== СЕРИЯ 1 =====
   '001': { loc: 'city_aerial', opt: { time: 'night', state: 'ok' }, dur: 1.6, black: { at: 0, to: 1.6, fin: 0, fout: 25 / 30 }, fx: SNOW, frames: ['xwide'] },
-  '002': { loc: 'apartment', opt: { ...quake, clock: '03:17' }, shots: [
+  '002': { minShot: 2.6, loc: 'apartment', opt: { ...quake, clock: '03:17' }, shots: [
       { frame: 'wide', cast: [{ prop: 'lamp', x0: 1200, y: 170, swing: 6, flick: 1 }, M(900, 'scared')], fx: { dust: 1 } },
       { frame: 'wide', zoom: [1.1, 1.2] },
       { frame: 'med', cast: [M(1000, 'look_up')] },
@@ -24,7 +24,7 @@ module.exports = {
       { frame: 'xwide', cast: [] },
       { frame: 'med', cast: [M(1200, 'protect')], fx: { dust: 1, embers: 1 } },
     ], quakes: [{ at: .6, amp: 12, len: 1.2 }, { at: 4.2, amp: 18, len: 1.8 }], flashes: [7.6], frames: ['wide'] },
-  '003': { loc: 'rooftop', opt: night, fx: SNOW, cast: [M(1150, 'idle', { turn: .85, lookY: -4 })], shots: [
+  '003': { minShot: 4.5, loc: 'rooftop', opt: night, fx: SNOW, cast: [M(1150, 'idle', { turn: .85, lookY: -4 })], shots: [
       { frame: 'med', w: 1.2 },
       { loc: 'switchroom', opt: night, frame: 'med', cast: [M(880, 'panel'), { prop: 'bolt', x0: 1000, y: 620 }], fx0: 1, fx: { sparks: [1150, 500] } },
       { loc: 'shaft', opt: { time: 'night', cabinY: 300 }, frame: 'wide', cast: [], fx0: 1, fx: {} },
