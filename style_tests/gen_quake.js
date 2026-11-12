@@ -23,7 +23,7 @@ const DEFS = `
   <linearGradient id="hairG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a22"/><stop offset="1" stop-color="#22160f"/></linearGradient>
 `;
 
-// ГЕРОЙ: Макс (рабочее имя), парень ~25, пропорция ~1:5.5, без контура, мягкий градиентный объём,
+// ГЕРОЙ: Марк, парень ~25, пропорция ~1:5.5, без контура, мягкий градиентный объём,
 // глаза-точки, рот почти не виден, руки-«трубки». Фирменная деталь — оранжевый шарф.
 // rimColor — контровой свет от источника сцены.
 function hero(x, base, sc, { flip = false, rim = '#ffb36b', look = 0, armUp = false } = {}) {
@@ -222,7 +222,7 @@ function sheet() {
    ${hero(1500, 900, 1.15, { rim: '#9fc4ff', flip: true, look: 4 })}
    <g font-family="Inter" font-weight="800" font-size="34" fill="#cfc8ee" text-anchor="middle">
     <text x="420" y="990">СТОИТ</text><text x="960" y="990">ТЯНЕТСЯ</text><text x="1500" y="990">ПОВОРОТ</text></g>
-   <text x="70" y="100" font-family="Inter" font-weight="900" font-size="54" fill="#fff">МАКС · 25 ЛЕТ</text>
+   <text x="70" y="100" font-family="Inter" font-weight="900" font-size="54" fill="#fff">МАРК · 25 ЛЕТ</text>
    <text x="70" y="148" font-family="Inter" font-weight="600" font-size="30" fill="#a9a3cc">главный герой канала «Один герой» · фирменная деталь — оранжевый шарф</text>
    <rect width="${W}" height="${H}" fill="url(#vig)" opacity=".6"/>
   </svg>`;
