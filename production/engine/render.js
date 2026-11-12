@@ -17,10 +17,13 @@ async function prerender(browser) {
     tl.bgs[key].layers = [];
     for (const l of r.layers) {
       const file = path.join(BGD, `${key}_${l.name}.png`);
-      tl.bgs[key].layers.push({ name: l.name, z: l.z, src: 'file://' + file });
-      if (fs.existsSync(file)) continue;
-      await p.setContent(`<body style="margin:0;background:transparent"><div style="filter:blur(${l.blur}px)">${l.svg}</div></body>`);
-      await p.screenshot({ path: file, omitBackground: l.name !== 'sky' && !(r.interior && l.name === 'mid'), clip: { x: 0, y: 0, width: BW, height: BH } });
+      const soft = ['far', 'mid'].includes(l.name) ? path.join(BGD, `${key}_${l.name}_soft.png`) : null;
+      tl.bgs[key].layers.push({ name: l.name, z: l.z, src: 'file://' + file, soft: soft ? 'file://' + soft : null });
+      for (const [fn, bl] of [[file, l.blur], [soft, l.blur + (l.name === 'far' ? 7 : 4)]]) {
+        if (!fn || fs.existsSync(fn)) continue;
+        await p.setContent(`<body style="margin:0;background:transparent"><div style="filter:blur(${bl}px)">${l.svg}</div></body>`);
+        await p.screenshot({ path: fn, omitBackground: l.name !== 'sky' && !(r.interior && l.name === 'mid'), clip: { x: 0, y: 0, width: BW, height: BH } });
+      }
     }
   }
   await p.close();
@@ -47,7 +50,7 @@ async function worker(id, frames, outFile) {
   await browser.close();
 }
 (async () => {
-  fs.writeFileSync(path.join(ENG, 'blank.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>');
+  fs.writeFileSync(path.join(ENG, 'blank.html'), '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#000;overflow:hidden}</style></head><body></body></html>');
   const b = await chromium.launch(); await prerender(b); await b.close();
   if (opt.stills) { await worker(0, opt.stills.split(',').map(Number)); console.log('stills ok'); return; }
   const [ra, rb] = opt.range ? opt.range.split('-').map(Number) : [0, tl.frames];

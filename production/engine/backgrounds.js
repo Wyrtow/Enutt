@@ -289,17 +289,42 @@
     return { sky: sky(T, { seed: 161, sun: o.sun ? [1900, 600] : null }), far: skyline(T, 760, 0, 140, 380, 162, T.far, { lit: .06 }) + fog(400, 500, T.fog, .35), mid, hero, fg: '' };
   });
 
+  // ---------- АВТО-ПЕРЕДНИЙ ПЛАН (глубина) ----------
+  function autoFg(T, interior, sd) {
+    rs(sd); const side = rnd() < .5 ? -1 : 1, L = side < 0;
+    let s = '';
+    if (!interior) {
+      // заснеженная ветка сверху
+      const x0 = L ? -60 : BW + 60, dir = L ? 1 : -1;
+      s += `<path d="M${x0},${R(40, 140).toFixed(0)} q${dir * 300},${R(20, 80).toFixed(0)} ${dir * 620},${R(160, 260).toFixed(0)}" stroke="#07060f" stroke-width="34" fill="none" stroke-linecap="round"/>`;
+      for (let i = 0; i < 5; i++) { const bx = x0 + dir * (120 + i * 110), by = 80 + i * 40; s += `<path d="M${bx},${by} q${dir * 60},${R(30, 60).toFixed(0)} ${dir * 140},${R(60, 120).toFixed(0)}" stroke="#07060f" stroke-width="${14 - i * 2}" fill="none" stroke-linecap="round"/><path d="M${bx},${by - 10} q${dir * 60},${R(20, 50).toFixed(0)} ${dir * 140},${R(50, 100).toFixed(0)}" stroke="${T.snow}" stroke-width="8" fill="none" opacity=".75" stroke-linecap="round"/>`; }
+      // столб/куст снизу с другой стороны
+      const px = L ? BW - R(120, 260) : R(120, 260);
+      s += rnd() < .5 ? `<rect x="${px - 30}" y="${BH - 760}" width="60" height="760" fill="#06050c"/><rect x="${px - 30}" y="${BH - 770}" width="60" height="16" fill="${T.snow}" opacity=".8"/>`
+                      : `<ellipse cx="${px}" cy="${BH - 40}" rx="300" ry="190" fill="#06050c"/><path d="M${px - 260},${BH - 150} q260,-110 520,0" stroke="${T.snow}" stroke-width="14" fill="none" opacity=".7"/>`;
+    } else {
+      const px = L ? R(0, 120) : BW - R(0, 120);
+      s += `<rect x="${px - 80}" y="0" width="160" height="${BH}" fill="#05040b"/><rect x="${px + (L ? 70 : -86)}" y="0" width="16" height="${BH}" fill="#1a1630"/>`;
+      const qx = L ? BW - 340 : 340;
+      s += `<path d="M${qx - 200},${BH} V${BH - 330} q200,-80 400,0 V${BH}Z" fill="#06050c"/>`;
+    }
+    return s;
+  }
+
   // ---------- СБОРКА СЛОЁВ ----------
   function bg(loc, opt = {}) {
     const T = TIME[opt.time || 'night'];
     rs(opt.seed || 7);
     const r = LOC[loc](T, opt);
     const layers = [];
+    const FLIPPABLE = ['yard', 'arch', 'street', 'embankment', 'ruins', 'rooftop', 'bench', 'tent_camp', 'city_aerial'];
+    if (opt.flip && FLIPPABLE.includes(loc)) for (const k of ['sky', 'far', 'mid', 'hero', 'fg']) if (r[k]) r[k] = `<g transform="translate(${BW},0) scale(-1,1)">${r[k]}</g>`;
     if (r.sky) layers.push({ name: 'sky', z: 12, blur: 0, svg: svgWrap(r.sky) });
     if (r.far) layers.push({ name: 'far', z: 5, blur: 4, svg: svgWrap(r.far) });
     if (r.mid) layers.push({ name: 'mid', z: r.interior ? 1.6 : 2.4, blur: r.interior ? 1 : 1.5, svg: svgWrap(r.mid) });
     if (r.hero) layers.push({ name: 'hero', z: 1, blur: 0, svg: svgWrap(r.hero) });
-    if (r.fg) layers.push({ name: 'fg', z: .55, blur: 10, svg: svgWrap(r.fg) });
+    const fgs = (r.fg || '') + (opt.noFg || loc === 'city_aerial' || loc === 'shaft' ? '' : autoFg(T, !!r.interior, (opt.seed || 7) * 31 + loc.length * 7));
+    if (fgs) layers.push({ name: 'fg', z: .5, blur: 12, svg: svgWrap(fgs) });
     return { layers, T, interior: !!r.interior, warm: !!r.warm, lampAt: r.lampAt };
   }
   root.BG = { bg, BW, BH, OX, OY, GROUND, TIME, LOCATIONS: Object.keys(LOC) };

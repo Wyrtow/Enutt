@@ -46,7 +46,7 @@
     el.dataset.key = shot.key; el.innerHTML = '';
     const B = TL.bgs[shot.bg];
     for (const l of B.layers) {
-      const im = new Image(); im.src = l.src; im.className = 'lay'; im.dataset.z = l.z; im.dataset.name = l.name;
+      const im = new Image(); im.src = (shot.dof && l.soft) ? l.soft : l.src; im.className = 'lay'; im.dataset.z = l.z; im.dataset.name = l.name;
       el.appendChild(im);
       if (l.name === 'hero') { const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('class', 'lay chars'); sv.setAttribute('viewBox', `0 0 ${BW} ${BH}`); sv.dataset.z = 1; el.appendChild(sv); }
     }
@@ -59,6 +59,9 @@
     const u = (f - shot.a) / Math.max(1, shot.b - shot.a), c = shot.cam;
     const e = ease(u, c.ease);
     let x = lerp(c.from[0], c.to[0], e), y = lerp(c.from[1], c.to[1], e), z = lerp(c.from[2], c.to[2], e), roll = lerp(c.from[3] || 0, c.to[3] || 0, e);
+    // «дыхание» камеры: очень медленные плавные колебания (не тряска)
+    const tt = f / TL.fps;
+    x += 4 * Math.sin(tt * 0.61) + 2 * Math.sin(tt * 1.37); y += 3 * Math.sin(tt * 0.47 + 1) + 1.5 * Math.sin(tt * 1.13); roll += 0.12 * Math.sin(tt * 0.33);
     // толчки: смена знака каждый кадр, затухание 7 кадров; землетрясение — серия + низкочастотная качка
     for (const q of TL.quakes) {
       const d = f - q.f;

@@ -72,12 +72,14 @@ for (let i = 0; i < scenes.length; i++) {
   for (const fl of c.flashes || []) flashes.push(a + F(fl));
   if (c.black) blacks.push({ a: a + F(c.black.at || 0), b: c.black.to !== undefined ? a + F(c.black.to) : b, fin: F(c.black.fin ?? .3), fout: F(c.black.fout ?? .3) });
   if (!c.loc) continue;
-  const key = bgKey(c.loc, c.opt || {});
+  const key0 = bgKey(c.loc, c.opt || {});
   // разбиение на планы ~6–10 с, кадрировка по кругу
   const plan = c.shots || null, durS = (b - a) / FPS; let lastCast = c.cast || null;
   const n = plan ? plan.length : Math.max(1, Math.round(durS / (c.shotLen || 8)));
   for (let k = 0; k < n; k++) {
-    const sa = a + Math.round((b - a) * k / n), sb = a + Math.round((b - a) * (k + 1) / n);
+    const ws = plan ? plan.map(q => q.w || 1) : null, wsum = ws ? ws.reduce((x, y) => x + y, 0) : n;
+    const cum = (j) => ws ? ws.slice(0, j).reduce((x, y) => x + y, 0) / wsum : j / n;
+    const sa = a + Math.round((b - a) * cum(k)), sb = a + Math.round((b - a) * cum(k + 1));
     const p = plan ? plan[k] : {};
     const frame = p.frame || (c.frames || ['wide', 'med', 'close', 'med'])[k % (c.frames || [1, 2, 3, 4]).length] || 'wide';
     const cast = (p.cast || (plan ? lastCast : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast = p.cast;
@@ -86,10 +88,39 @@ for (let i = 0; i < scenes.length; i++) {
     const kid = focus && ['sonya', 'timur'].includes(focus.who);
     const hY = focus ? GROUND - (frame === 'close' ? (kid ? 330 : 540) : (kid ? 220 : 360)) * (focus.sc || 1) : 675;
     const [z0, z1] = p.zoom || FR[frame] || FR.wide;
-    const cx = frame === 'wide' || frame === 'xwide' ? 1200 + (p.dx || 0) : fx_ + (p.dx || 0), cy = frame === 'wide' || frame === 'xwide' ? 675 : hY;
-    const drift = (p.drift ?? (k % 2 ? -1 : 1)) * (c.driftPx ?? 40);
-    shots.push({ a: sa, b: sb, bg: key, key: key + ':' + i + ':' + k, cast, fx: { ...(c.fx || {}), ...(p.fx || {}) }, rim: c.rim,
-      cam: { from: [cx - drift / 2, cy, z0, p.roll || c.roll || 0], to: [cx + drift / 2, cy - (p.rise || 0), z1, p.roll || c.roll || 0], ease: p.ease || 'smooth' },
+    let cx = frame === 'wide' || frame === 'xwide' ? 1200 + (p.dx || 0) : fx_ + (p.dx || 0), cy = frame === 'wide' || frame === 'xwide' ? 675 : hY;
+    if (p.center) { cx = p.center[0]; cy = p.center[1]; }
+    const key = p.loc ? bgKey(p.loc, p.opt || c.opt || {}) : key0;
+    // ---- движение камеры: пресеты, без повторов подряд ----
+    const MOVES = { wide: ['truckL', 'craneDown', 'truckR', 'pullOut', 'arcL', 'craneUp', 'arcR'], xwide: ['craneDown', 'truckR', 'pullOut', 'truckL'], med: ['pushArcR', 'pushIn', 'pushArcL', 'truckR', 'pushIn'], close: ['pushSlow', 'driftL', 'pushSlow', 'driftR'] };
+    const fkey = frame === 'xwide' ? 'xwide' : frame;
+    const pool = MOVES[fkey] || MOVES.wide;
+    let mv = p.move || c.move || pool[(shots.length * 3 + k) % pool.length];
+    if (shots.length && shots[shots.length - 1].move === mv) mv = pool[(pool.indexOf(mv) + 1) % pool.length];
+    const sec = (sb - sa) / FPS, T = Math.min(1.6, Math.max(.6, sec / 6)); // длиннее план — больше путь
+    const zs = z0, zm = (z0 + z1) / 2;
+    let from, to;
+    switch (mv) {
+      case 'truckL': from = [cx + 130 * T, cy, zs + .02]; to = [cx - 130 * T, cy, zs + .05]; break;
+      case 'truckR': from = [cx - 130 * T, cy, zs + .02]; to = [cx + 130 * T, cy, zs + .05]; break;
+      case 'craneDown': from = [cx, cy - 110 * T, zs + .06]; to = [cx, cy + 20, zs]; break;
+      case 'craneUp': from = [cx, cy + 40, zs]; to = [cx, cy - 100 * T, zs + .06]; break;
+      case 'pullOut': from = [cx, cy - 20, zs + .16]; to = [cx, cy, zs]; break;
+      case 'arcL': from = [cx + 150 * T, cy, zs + .1]; to = [cx - 60 * T, cy - 30, zs + .02]; break;
+      case 'arcR': from = [cx - 150 * T, cy, zs + .1]; to = [cx + 60 * T, cy - 30, zs + .02]; break;
+      case 'pushIn': from = [cx, cy + 10, zs]; to = [cx, cy - 10, z1 + .06 * T]; break;
+      case 'pushArcR': from = [cx - 90 * T, cy + 10, zs]; to = [cx + 40 * T, cy - 8, z1 + .05 * T]; break;
+      case 'pushArcL': from = [cx + 90 * T, cy + 10, zs]; to = [cx - 40 * T, cy - 8, z1 + .05 * T]; break;
+      case 'pushSlow': from = [cx, cy, zs]; to = [cx, cy - 6, z1 + .04]; break;
+      case 'driftL': from = [cx + 40, cy, zm]; to = [cx - 40, cy, zm + .03]; break;
+      case 'driftR': from = [cx - 40, cy, zm]; to = [cx + 40, cy, zm + .03]; break;
+      default: from = [cx - 40, cy, z0]; to = [cx + 40, cy, z1];
+    }
+    if (p.rise) to[1] -= p.rise;
+    const roll = p.roll || c.roll || 0;
+    const dof = p.dof ?? (frame === 'med' || frame === 'close' ? 1 : 0);
+    shots.push({ a: sa, b: sb, bg: key, key: key + ':' + i + ':' + k + (dof ? ':d' : ''), move: mv, dof, cast, fx: p.fx0 ? { ...p.fx } : { ...(c.fx || {}), ...(p.fx || {}) }, rim: c.rim,
+      cam: { from: [...from, roll], to: [...to, roll], ease: p.ease || 'smooth' },
       xin: (k === 0 && c.cut) ? 0 : 10, overlay: c.overlay || '' });
   }
 }
