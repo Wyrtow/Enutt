@@ -97,7 +97,7 @@ for (let i = 0; i < scenes.length; i++) {
     const p = P[k];
     const frame = p.frame || (c.frames || ['wide', 'med', 'close', 'med'])[k % (c.frames || [1, 2, 3, 4]).length] || 'wide';
     const locK = p.loc || c.loc; const cast = (p.cast || (plan ? lastCast[locK] : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast[locK] = p.cast;
-    const focus = cast.find(x => x.id === (p.focus || c.focus)) || cast[0];
+    const focus = cast.find(x => x.id === (p.focus || c.focus)) || cast.find(x => x.who) || cast[0];
     const fx_ = focus ? (focus.x1 !== undefined ? (focus.x0 + focus.x1) / 2 : focus.x0) : 1200;
     const kid = focus && ['sonya', 'timur'].includes(focus.who);
     const hY = focus ? GROUND - (frame === 'close' ? (kid ? 330 : 540) : (kid ? 220 : 360)) * (focus.sc || 1) : 675;
