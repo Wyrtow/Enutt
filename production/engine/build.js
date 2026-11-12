@@ -22,6 +22,13 @@ for (const ln of lines) {
 }
 // ---- 2. время сцен по словам ----
 const words = timing.words;
+// особые говорящие одним голосом (Петрович = MALE): помечаем их слова отдельным v, чтобы губы шевелились только у них
+{ const spk = fs.existsSync(path.join(VD, 'voice_text', 'speakers.json')) ? JSON.parse(fs.readFileSync(path.join(VD, 'voice_text', 'speakers.json'), 'utf8')) : {};
+  const nz = (x) => x.toLowerCase().replace(/[^а-яёa-z0-9]/g, '');
+  for (const [who, segs] of Object.entries(spk)) for (const [seg, quotes] of Object.entries(segs)) {
+    const ws = words.filter(w => w.seg === seg);
+    for (const q of quotes) { const qt = q.split(/\s+/).map(nz).filter(Boolean);
+      for (let i = 0; i + qt.length <= ws.length; i++) if (qt.every((t, j) => nz(ws[i + j].w) === t)) { for (let j = 0; j < qt.length; j++) { ws[i + j].v = who; ws[i + j].q = 1; } break; } } } }
 for (const s of scenes) { const w = words.filter(x => x.scene === s.id); if (w.length) { s.t0 = w[0].s; s.t1 = w[w.length - 1].e; } }
 // ---- 3. немые сцены: место + вставка тишины ----
 const ins = []; // {at, dur}
@@ -69,11 +76,18 @@ for (let i = 0; i < scenes.length; i++) {
   const s = scenes[i], c = SC[s.id] || {};
   const a = F(s.t0), b = i + 1 < scenes.length ? F(scenes[i + 1].t0) : F(dur);
   if (s.card) { cards.push({ a, b, num: s.card.num, title: s.card.title }); }
+  // время по тексту: число — секунды от начала сцены; 'слово' / 'слово#2' / 'слово+0.4' — момент этого слова в озвучке
+  const norm = (x) => x.toLowerCase().replace(/[^а-яёa-z0-9:]/g, '');
+  const T = (spec) => { if (spec === undefined) return undefined; if (typeof spec === 'number') return a + F(spec);
+    const m = String(spec).match(/^([^#+\-]+)(?:#(\d+))?([+-][\d.]+)?$/); const key = norm(m[1]), occ = +(m[2] || 1), off = +(m[3] || 0);
+    const hits = words.filter(w => w.scene === s.id && norm(w.w).startsWith(key)); const w = hits[occ - 1];
+    if (!w) { console.warn(`  ! сцена ${s.id}: слово «${spec}» не найдено`); return a; } return F(shift(w.s) + off); };
+  const timed = (x) => { const y = { ...x }; if (x.at !== undefined) y._f = T(x.at); if (x.acts) y._acts = x.acts.map(([sp, ac]) => [T(sp), ac]); if (x.walk) { y.fa = T(x.walk[0]); y.fb = T(x.walk[1]); } if (x.until !== undefined) y._u = T(x.until); if (x.blinks) y._bl = x.blinks.map(T); if (x.burst !== undefined) y._burst = T(x.burst); return y; };
   s.pills.forEach((p, k) => { const pa = a + F(.25) + k * F(1.6), pb = Math.min(b - 2, pa + F(s.pills.length > 1 ? 1.5 : 3.4)); pills.push({ a: pa, b: pb, ...p, tilt: c.tilt || (p.color === 'yellow' ? -2 : 0) }); });
-  for (const x of c.inserts || []) inserts.push({ ...x, a: a + F(x.at || 0), b: x.len ? a + F((x.at || 0) + x.len) : b });
-  for (const q of c.quakes || []) quakes.push({ f: a + F(q.at), len: F(q.len || 1.4), amp: q.amp || 14 });
-  for (const fl of c.flashes || []) flashes.push(a + F(fl));
-  if (c.black) blacks.push({ a: a + F(c.black.at || 0), b: c.black.to !== undefined ? a + F(c.black.to) : b, fin: F(c.black.fin ?? .3), fout: F(c.black.fout ?? .3) });
+  for (const x of c.inserts || []) { const ia = T(x.at || 0); inserts.push({ ...x, a: ia, b: x.len ? ia + F(x.len) : b }); }
+  for (const q of c.quakes || []) quakes.push({ f: T(q.at), len: F(q.len || 1.4), amp: q.amp || 14 });
+  for (const fl of c.flashes || []) flashes.push(T(fl));
+  if (c.black) blacks.push({ a: T(c.black.at || 0), b: c.black.to !== undefined ? T(c.black.to) : b, fin: F(c.black.fin ?? .3), fout: F(c.black.fout ?? .3) });
   if (!c.loc) continue;
   const key0 = bgKey(c.loc, c.opt || {});
   // разбиение на планы ~6–10 с, кадрировка по кругу
@@ -96,11 +110,11 @@ for (let i = 0; i < scenes.length; i++) {
     const sa = P[k]._a, sb = P[k]._b;
     const p = P[k];
     const frame = p.frame || (c.frames || ['wide', 'med', 'close', 'med'])[k % (c.frames || [1, 2, 3, 4]).length] || 'wide';
-    const locK = p.loc || c.loc; const cast = (p.cast || (plan ? lastCast[locK] : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast[locK] = p.cast;
+    const locK = p.loc || c.loc; const cast = (p.cast || (plan ? lastCast[locK] : null) || c.cast || []).map(timed); if (p.cast) lastCast[locK] = p.cast;
     const focus = cast.find(x => x.id === (p.focus || c.focus)) || cast.find(x => x.who) || cast[0];
     const fx_ = focus ? (focus.x1 !== undefined ? (focus.x0 + focus.x1) / 2 : focus.x0) : 1200;
     const kid = focus && ['sonya', 'timur'].includes(focus.who);
-    const hY = focus ? GROUND - (frame === 'close' ? (kid ? 330 : 540) : (kid ? 220 : 360)) * (focus.sc || 1) : 675;
+    const hY = focus ? GROUND - (frame === 'close' ? (kid ? 330 : 540) : (kid ? 220 : 360)) * (focus.sc || 1) + (focus.seatY !== undefined ? 230 : (focus.sitting || focus.act === 'sit') ? 110 : focus.kneeling || focus.act === 'kneel' ? 130 : 0) : 675;
     const [z0, z1] = p.zoom || FR[frame] || FR.wide;
     let cx = frame === 'wide' || frame === 'xwide' ? 1200 + (p.dx || 0) : fx_ + (p.dx || 0), cy = frame === 'wide' || frame === 'xwide' ? 675 : hY;
     if (p.center) { cx = p.center[0]; cy = p.center[1]; }
@@ -152,7 +166,8 @@ for (let i = 0; i < subs.length; i++) {
 }
 for (let i = 0; i < chunks.length - 1; i++) chunks[i].b = Math.min(chunks[i].b, chunks[i + 1].a);
 for (const c of cards) for (const ch of chunks) if (ch.a < c.b && ch.b > c.a) ch.b = Math.min(ch.b, c.a);
-const tl = { fps: FPS, frames: F(dur), duration: dur, ep: EP, bgs, shots, subs, chunks, pills, cards, inserts, blacks, flashes, quakes, insertions: ins };
+const SUBS = process.env.SUBS === '1';
+const tl = { fps: FPS, frames: F(dur), duration: dur, ep: EP, bgs, shots, subs, chunks: SUBS ? chunks : [], pills, cards, inserts, blacks, flashes, quakes, insertions: ins };
 fs.writeFileSync(path.join(out, `ep${EP}.timeline.json`), JSON.stringify(tl));
 console.log(`серия ${EP}: ${(dur / 60).toFixed(2)} мин, ${tl.frames} кадров, сцен ${scenes.length}, планов ${shots.length}, фонов ${Object.keys(bgs).length}, вставок тишины ${ins.length} (${ins.reduce((a, x) => a + x.dur, 0).toFixed(1)} с)`);
 const missing = scenes.filter(s => !SC[s.id]).map(s => s.id); if (missing.length) console.log('нет настроек сцен:', missing.join(' '));

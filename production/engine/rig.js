@@ -59,13 +59,13 @@
     const C = { top: L.topC, pants: L.pants, shoe: L.shoe, skin: L.skin, hair: L.hairC };
     const footA = s.footA || [bx - 22 * K, 0], footB = s.footB || [bx + 22 * K, 0];
     const legA = ik2(hipA, footA, 152 * K, 150 * K, F >= 0 ? 1 : -1), legB = ik2(hipB, footB, 152 * K, 150 * K, F >= 0 ? 1 : -1);
-    const arm = (sh, a, b) => {
+    const arm = (sh, a, b, up = 1, lo = 1) => { // up/lo — ракурсное укорочение плеча/предплечья (рука к камере)
       const A = a * D2R * F, B = (a + b) * D2R * F;
-      const el = [sh[0] + Math.sin(A) * 92 * K, sh[1] + Math.cos(A) * 92 * K];
-      return { el, ha: [el[0] + Math.sin(B) * 86 * K, el[1] + Math.cos(B) * 86 * K] };
+      const el = [sh[0] + Math.sin(A) * 92 * K * up, sh[1] + Math.cos(A) * 92 * K * up];
+      return { el, ha: [el[0] + Math.sin(B) * 86 * K * lo, el[1] + Math.cos(B) * 86 * K * lo] };
     };
     const sA = [shA[0] + 4 * K, shA[1] + 10 * K], sB = [shB[0] - 4 * K, shB[1] + 10 * K];
-    const armA = arm(sA, s.armA || 0, s.elbA ?? 10), armB = arm(sB, s.armB || 0, s.elbB ?? 10);
+    const armA = arm(sA, s.armA || 0, s.elbA ?? 10, s.upA ?? 1, s.loA ?? 1), armB = arm(sB, s.armB || 0, s.elbB ?? 10, s.upB ?? 1, s.loB ?? 1);
     const lw = 33 * K, aw = 27 * K;
     const nearIsA = !(T > .3 && F < 0);
     const topC = C.top;
@@ -165,7 +165,23 @@
     const nearArms = T > .3 ? armSvg(nearIsA ? sA : sB, nearIsA ? armA : armB, false) : armSvg(sA, armA, false) + armSvg(sB, armB, false);
     const legs = T > .3 ? (nearIsA ? leg(legB, hipB, true, s.pitchB) + leg(legA, hipA, false, s.pitchA) : leg(legA, hipA, true, s.pitchA) + leg(legB, hipB, false, s.pitchB))
                         : leg(legA, hipA, false, s.pitchA) + leg(legB, hipB, false, s.pitchB);
-    const body = `${shadow}${farArm}${legs}${torso}${scarf}${nearArms}${face}${prop}`;
+    // предмет в руке: s.hold = phone|keys|cup|kettle|mat|bag|bandage|box|lantern2
+    if (s.hold && !s.noProp) { const h = s.holdHand === 'A' ? armA.ha : s.holdHand === 'B' ? armB.ha : (s.turn || 0) > .3 ? hand : armB.ha, hx = h[0].toFixed(1), hy = h[1].toFixed(1), kk = K;
+      const P = {
+        phone: `<rect x="-11" y="-20" width="22" height="38" rx="5" fill="#15141f"/><rect x="-8" y="-16" width="16" height="28" rx="2" fill="${s.phoneOn === 0 ? '#22202e' : '#9fd4ff'}" ${s.phoneOn === 0 ? '' : 'filter="url(#glow)"'}/>`,
+        keys: `<circle r="9" fill="none" stroke="#c9c2a8" stroke-width="3"/><path d="M4,6 l10,14 M8,14 l5,-3" stroke="#d8cf9c" stroke-width="4"/>`,
+        cup: `<path d="M-14,-10 h28 l-4,30 h-20z" fill="#e8e2d6"/><path d="M14,-4 q12,4 0,14" stroke="#e8e2d6" stroke-width="4" fill="none"/>`,
+        kettle: `<path d="M-26,0 q0,-30 26,-30 q26,0 26,30 v20 h-52z" fill="#b8c4cc"/><path d="M-14,-30 q14,-18 28,0" stroke="#333" stroke-width="5" fill="none"/><path d="M26,6 l22,-14" stroke="#b8c4cc" stroke-width="9"/>`,
+        mat: `<rect x="-90" y="-26" width="180" height="52" rx="10" fill="#3d63b0"/><rect x="-90" y="-26" width="180" height="10" rx="5" fill="#5a82d0"/>`,
+        bag: `<rect x="-24" y="0" width="48" height="56" rx="8" fill="#5a3b2a"/><path d="M-12,0 q12,-20 24,0" stroke="#3a2618" stroke-width="5" fill="none"/>`,
+        bandage: `<rect x="-14" y="-10" width="28" height="22" rx="10" fill="#f2efe8"/><path d="M14,0 q30,10 40,40" stroke="#f2efe8" stroke-width="10" fill="none"/>`,
+        box: `<rect x="-40" y="-34" width="80" height="60" rx="4" fill="#a8743f"/><path d="M-40,-14 h80" stroke="#8a5a2c" stroke-width="4"/>`,
+        icon: `<rect x="-22" y="-30" width="44" height="56" rx="3" fill="#c9a24a"/><rect x="-15" y="-22" width="30" height="40" fill="#7a3a2a"/><circle cy="-8" r="8" fill="#f0c890"/>`,
+        clipboard: `<rect x="-20" y="-28" width="40" height="54" rx="3" fill="#8a6a40"/><rect x="-15" y="-20" width="30" height="42" fill="#f2efe8"/><path d="M-10,-10 h20 M-10,0 h20 M-10,10 h14" stroke="#888" stroke-width="2"/>`,
+        lantern2: `<path d="M-10,0 h20 M0,0 v10" stroke="#222" stroke-width="3"/><rect x="-14" y="10" width="28" height="36" rx="6" fill="#3a3326"/><rect x="-9" y="15" width="18" height="24" rx="4" fill="#ffd27a" filter="url(#glow)"/>`,
+      }[s.hold] || '';
+      prop += `<g transform="translate(${hx},${hy}) scale(${kk.toFixed(2)}) rotate(${(s.holdRot || 0).toFixed(1)})">${P}</g>`; }
+    const body = s.handFront ? `${shadow}${farArm}${legs}${torso}${scarf}${face}${nearArms}${prop}` : `${shadow}${farArm}${legs}${torso}${scarf}${nearArms}${face}${prop}`;
     const sc = (s.sc || 1) * (L.size || 1);
     const lie = s.lie ? ` translate(0,${(300 * K).toFixed(1)}) rotate(${-84 * F} ${bx.toFixed(1)} ${hipY.toFixed(1)})` : '';
     const ghost = s.ghost ? ` filter="url(#ghost)"` : '';
