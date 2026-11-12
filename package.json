@@ -1,0 +1,27 @@
+{
+  "name": "voxel-cast",
+  "version": "1.0.0",
+  "description": "Voxel characters for animated videos",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "render": "node scripts/render_clips.mjs",
+    "sheets": "node scripts/sheet_faces.mjs renders/sheets",
+    "viewer": "node scripts/build_viewer.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wyrtow/Enutt.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Wyrtow/Enutt/issues"
+  },
+  "homepage": "https://github.com/Wyrtow/Enutt#readme",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "type": "module"
+}

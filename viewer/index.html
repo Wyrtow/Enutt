@@ -1,0 +1,1168 @@
+<title>Воксельная труппа</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Manrope:wght@400;600;700&display=swap">
+<style>
+/* Layout: stage (3D canvas) left, control rail right; stacks on phones */
+:root {
+  --bg: #e9e7e2; --panel: #f7f6f3; --ink: #1d1c1f; --muted: #6b6870; --line: #d6d3cc;
+  --accent: #2f6fd1; --accent-ink: #ffffff; --stage: #f3f1ec;
+  --f-pixel: 'Silkscreen', ui-monospace, monospace; --f-body: 'Manrope', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17171a; --panel: #212125; --ink: #ecebef; --muted: #9c99a3; --line: #34343a;
+  --accent: #6f9df0; --accent-ink: #0d1020; --stage: #2a2a2f; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #17171a; --panel: #212125; --ink: #ecebef; --muted: #9c99a3; --line: #34343a;
+  --accent: #6f9df0; --accent-ink: #0d1020; --stage: #2a2a2f; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; box-sizing: border-box; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; height: 100%; min-height: 560px; }
+.stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; min-height: 360px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+.stage .who { position: absolute; left: 16px; top: 14px; pointer-events: none; }
+.who h1 { font-family: var(--f-pixel); font-weight: 400; font-size: 26px; margin: 0; letter-spacing: .02em; }
+.who p { margin: 2px 0 0; color: var(--muted); }
+.hint { position: absolute; right: 14px; bottom: 12px; color: var(--muted); font-size: 12px; pointer-events: none; }
+.rail { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.rail h2 { font-family: var(--f-pixel); font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 600 13px var(--f-body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.chips button:hover { border-color: var(--muted); }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.transport button { font: 700 13px var(--f-body); background: var(--ink); color: var(--panel); border: 0; border-radius: 4px; padding: 8px 14px; cursor: pointer; min-width: 84px; }
+.transport input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; min-width: 76px; text-align: right; }
+.row { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.row input { flex: 1; accent-color: var(--accent); }
+.note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+@media (max-width: 820px) { .app { grid-template-columns: 1fr; height: auto; } .stage { height: 62vh; } }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="who"><h1 id="whoName">Макс</h1><p id="whoRole"></p></div>
+    <div class="hint">Тяните, чтобы вращать камеру</div>
+  </div>
+  <aside class="rail">
+    <section><h2>Персонаж</h2><div class="chips" id="chars"></div>
+      <div class="chips" style="margin-top:6px"><button id="all" aria-pressed="false">Все вместе</button></div></section>
+    <section><h2>Анимация</h2><div class="chips" id="clips"></div></section>
+    <section>
+      <div class="transport"><button id="play">Пауза</button><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Время"><span class="time" id="time">0.00 / 0.00 с</span></div>
+      <div class="row" style="margin-top:10px"><label for="speed">Скорость</label><input id="speed" type="range" min="0.1" max="2" step="0.05" value="1"><span id="speedV" class="time" style="min-width:40px">1.0×</span></div>
+    </section>
+    <section><h2>Эмоция поверх анимации</h2><div class="chips" id="emos"></div></section>
+    <p class="note">Все персонажи собраны на одном скелете из 13 суставов, поэтому любая анимация подходит любому из них. Лицо — пиксельные слои: глаза, брови и рот меняются независимо, рот умеет «говорить» для липсинка.</p>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+// Voxel grid + mesher (face culling, per-vertex ambient occlusion, subtle per-voxel colour noise)
+
+
+const FACES = [
+  { dir: [-1, 0, 0], axis: 0, corners: [[0, 1, 0], [0, 0, 0], [0, 1, 1], [0, 0, 1]] },
+  { dir: [1, 0, 0], axis: 0, corners: [[1, 1, 1], [1, 0, 1], [1, 1, 0], [1, 0, 0]] },
+  { dir: [0, -1, 0], axis: 1, corners: [[1, 0, 1], [0, 0, 1], [1, 0, 0], [0, 0, 0]] },
+  { dir: [0, 1, 0], axis: 1, corners: [[0, 1, 1], [1, 1, 1], [0, 1, 0], [1, 1, 0]] },
+  { dir: [0, 0, -1], axis: 2, corners: [[1, 0, 0], [0, 0, 0], [1, 1, 0], [0, 1, 0]] },
+  { dir: [0, 0, 1], axis: 2, corners: [[0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]] },
+];
+const AO = [0.58, 0.74, 0.88, 1.0];
+
+function hash3(x, y, z) {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(z | 0, 1274126177)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Multiply an sRGB hex colour by f (f<1 darker, f>1 lighter). */
+function shade(hex, f) {
+  const c = new THREE.Color(hex);
+  const hsl = {};
+  c.getHSL(hsl, THREE.SRGBColorSpace);
+  hsl.l = Math.min(1, Math.max(0, hsl.l * f));
+  c.setHSL(hsl.h, hsl.s, hsl.l, THREE.SRGBColorSpace);
+  return '#' + c.getHexString();
+}
+function mix(a, b, t) {
+  const c = new THREE.Color(a).lerp(new THREE.Color(b), t);
+  return '#' + c.getHexString();
+}
+
+class VoxelGrid {
+  constructor() { this.m = new Map(); }
+  static k(x, y, z) { return x + ',' + y + ',' + z; }
+  set(x, y, z, c) {
+    const k = VoxelGrid.k(x, y, z);
+    if (c === null || c === undefined || c === false) this.m.delete(k);
+    else this.m.set(k, { x, y, z, c });
+  }
+  get(x, y, z) { const v = this.m.get(VoxelGrid.k(x, y, z)); return v ? v.c : undefined; }
+  has(x, y, z) { return this.m.has(VoxelGrid.k(x, y, z)); }
+  /** Fill [x0,x1)×[y0,y1)×[z0,z1). c = colour, or fn(x,y,z,existing) -> colour | undefined(skip) | null(delete) */
+  box(x0, y0, z0, x1, y1, z1, c) {
+    for (let x = x0; x < x1; x++) for (let y = y0; y < y1; y++) for (let z = z0; z < z1; z++) {
+      const col = typeof c === 'function' ? c(x, y, z, this.get(x, y, z)) : c;
+      if (col !== undefined) this.set(x, y, z, col);
+    }
+    return this;
+  }
+  /** Recolour existing voxels: fn(x,y,z,c) -> new colour | undefined(keep) | null(delete) */
+  paint(fn) {
+    for (const v of [...this.m.values()]) {
+      const r = fn(v.x, v.y, v.z, v.c);
+      if (r !== undefined) this.set(v.x, v.y, v.z, r);
+    }
+    return this;
+  }
+  get size() { return this.m.size; }
+}
+
+const colorCache = new Map();
+function colorOf(hex) {
+  let c = colorCache.get(hex);
+  if (!c) { c = new THREE.Color(hex); colorCache.set(hex, c); }
+  return c;
+}
+
+function buildGeometry(grid, opts = {}) {
+  const { scale = [1, 1, 1], offset = [0, 0, 0], ao = true, noise = 0.035 } = opts;
+  const pos = [], nor = [], col = [], idx = [];
+  for (const { x, y, z, c } of grid.m.values()) {
+    const base = colorOf(c);
+    const n = noise ? 1 + (hash3(x, y, z) - 0.5) * 2 * noise : 1;
+    for (const f of FACES) {
+      const [dx, dy, dz] = f.dir;
+      if (grid.has(x + dx, y + dy, z + dz)) continue;
+      const ndx = pos.length / 3;
+      const t = f.axis === 0 ? [1, 2] : f.axis === 1 ? [0, 2] : [0, 1];
+      for (const cr of f.corners) {
+        pos.push((x + cr[0]) * scale[0] + offset[0], (y + cr[1]) * scale[1] + offset[1], (z + cr[2]) * scale[2] + offset[2]);
+        nor.push(dx, dy, dz);
+        let a = 1;
+        if (ao) {
+          const o1 = [0, 0, 0], o2 = [0, 0, 0];
+          o1[t[0]] = cr[t[0]] * 2 - 1; o2[t[1]] = cr[t[1]] * 2 - 1;
+          const bx = x + dx, by = y + dy, bz = z + dz;
+          const s1 = grid.has(bx + o1[0], by + o1[1], bz + o1[2]) ? 1 : 0;
+          const s2 = grid.has(bx + o2[0], by + o2[1], bz + o2[2]) ? 1 : 0;
+          const cc = grid.has(bx + o1[0] + o2[0], by + o1[1] + o2[1], bz + o1[2] + o2[2]) ? 1 : 0;
+          a = AO[s1 && s2 ? 0 : 3 - (s1 + s2 + cc)];
+        }
+        col.push(base.r * n * a, base.g * n * a, base.b * n * a);
+      }
+      idx.push(ndx, ndx + 1, ndx + 2, ndx + 2, ndx + 1, ndx + 3);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeBoundingSphere();
+  return g;
+}
+
+// Pixel-art facial features drawn as thin voxel slabs on the front of the head.
+// Head front grid: 12 wide (x 0..11), 14 tall (y 0..13).
+//  eyes : rows y=9,8,7  (top→bottom), viewer-left eye x=1..4, viewer-right eye x=7..10
+//  brows: rows y=12,11
+//  mouth: rows y=4,3,2, x=3..8
+// Eye / brow strings are written OUTER → INNER and mirrored automatically.
+//  W white  P pupil  L lid/lash  B brow  D mouth dark  T teeth  G tongue  R lip  K blush
+
+
+const EYES = {
+  neutral:   ['LLLL', 'WPPW', '....'],
+  open:      ['LLLL', 'WPPW', 'WPPW'],
+  blink:     ['....', 'LLLL', '....'],
+  closed:    ['....', '....', 'LLLL'],
+  happy:     ['.LL.', 'L..L', '....'],
+  laugh:     ['LL..', '..LL', 'LL..'],
+  surprised: ['WWWW', 'WPPW', 'WWWW'],
+  sad:       ['..LL', 'LPPW', '....'],
+  angry:     ['LL..', 'WPPL', '....'],
+  half:      ['....', 'LLLL', 'WPPW'],
+  focused:   ['LLLL', 'WPPW', 'LLLL'],
+};
+
+const BROWS = {
+  neutral: ['....', 'BBBB'],
+  raised:  ['BBBB', '....'],
+  angry:   ['BB..', '..BB'],
+  sad:     ['..BB', 'BB..'],
+  none:    ['....', '....'],
+};
+
+const MOUTHS = {
+  neutral:   ['......', '.DDDD.', '..RR..'],
+  closed:    ['......', '.DDDD.', '......'],
+  smile:     ['D....D', '.DDDD.', '......'],
+  grin:      ['D....D', 'DTTTTD', '.DDDD.'],
+  laugh:     ['DTTTTD', 'DDGGDD', '.DDDD.'],
+  sad:       ['......', '.DDDD.', 'D....D'],
+  angry:     ['DDDDDD', 'TTTTTT', 'DDDDDD'],
+  frown:     ['.DDDD.', 'D....D', '......'],
+  o:         ['..DD..', '.DGGD.', '..DD..'],
+  small_o:   ['......', '..DD..', '..DD..'],
+  smirk:     ['......', '.....D', '.DDDD.'],
+  flat:      ['......', 'DDDDDD', '......'],
+  wavy:      ['......', 'D.DD.D', '.D..D.'],
+  // visemes for talking / lip-sync
+  A:         ['.DDDD.', 'DDGGDD', '.DDDD.'],
+  E:         ['......', 'DTTTTD', '.DDDD.'],
+  O:         ['..DD..', '.DDDD.', '..DD..'],
+  U:         ['......', '..DD..', '..DD..'],
+  M:         ['......', '.DDDD.', '......'],
+};
+
+// Ready-made emotions (combinations). Any key can be overridden per frame.
+const EMOTIONS = {
+  neutral:   { eyes: 'neutral', brows: 'neutral', mouth: 'neutral' },
+  smile:     { eyes: 'neutral', brows: 'neutral', mouth: 'smile' },
+  happy:     { eyes: 'happy', brows: 'raised', mouth: 'grin' },
+  laugh:     { eyes: 'laugh', brows: 'raised', mouth: 'laugh' },
+  sad:       { eyes: 'sad', brows: 'sad', mouth: 'sad' },
+  angry:     { eyes: 'angry', brows: 'angry', mouth: 'angry' },
+  surprised: { eyes: 'surprised', brows: 'raised', mouth: 'o' },
+  thinking:  { eyes: 'neutral', brows: 'neutral', browR: 'raised', mouth: 'smirk', gaze: [1, 0] },
+  skeptical: { eyes: 'half', brows: 'angry', browR: 'raised', mouth: 'flat' },
+  wink:      { eyes: 'neutral', eyeL: 'happy', brows: 'neutral', mouth: 'smirk' },
+  worried:   { eyes: 'open', brows: 'sad', mouth: 'wavy' },
+  bored:     { eyes: 'half', brows: 'neutral', mouth: 'flat' },
+  embarrassed: { eyes: 'happy', brows: 'sad', mouth: 'wavy', blush: true },
+  determined: { eyes: 'focused', brows: 'angry', mouth: 'flat' },
+};
+
+const VISEME_CYCLE = ['A', 'M', 'E', 'O', 'A', 'U', 'E', 'M', 'A', 'O', 'E', 'closed'];
+
+function shiftPupils(row, gx) {
+  if (!gx || !row.includes('P')) return row;
+  const chars = row.split('');
+  const span = chars.map((c, i) => (c === 'P' || c === 'W') ? i : -1).filter(i => i >= 0);
+  const pupils = chars.map((c, i) => c === 'P' ? i : -1).filter(i => i >= 0);
+  const lo = Math.min(...span), hi = Math.max(...span);
+  span.forEach(i => chars[i] = 'W');
+  let shift = gx;
+  if (pupils[0] + shift < lo) shift = lo - pupils[0];
+  if (pupils[pupils.length - 1] + shift > hi) shift = hi - pupils[pupils.length - 1];
+  pupils.forEach(i => chars[i + shift] = 'P');
+  return chars.join('');
+}
+
+/** Build the face overlay grid for a resolved face state. */
+function faceGrid(face, pal) {
+  const g = new VoxelGrid();
+  const col = ch => pal[ch];
+  const gx = (face.gaze && face.gaze[0]) || 0;
+  const gy = (face.gaze && face.gaze[1]) || 0;
+
+  const drawEye = (map, x0, mirror, yTop) => {
+    let rows = map.slice();
+    if (gy) {
+      // vertical gaze: move pupil row up/down if possible
+      const pi = rows.findIndex(r => r.includes('P'));
+      const ni = pi - gy;
+      if (pi >= 0 && ni >= 0 && ni < rows.length && /^[W.]*$/.test(rows[ni]) && rows[ni].includes('W')) {
+        const pr = rows[pi], nr = rows[ni];
+        rows[ni] = pr; rows[pi] = nr;
+      }
+    }
+    rows.forEach((row, r) => {
+      // to world x order (left→right on screen)
+      let s = mirror ? row.split('').reverse().join('') : row;
+      s = shiftPupils(s, gx);
+      for (let i = 0; i < 4; i++) {
+        const ch = s[i];
+        if (ch !== '.') g.set(x0 + i, yTop - r, 0, col(ch));
+      }
+    });
+  };
+  // viewer-left eye: outer is x=1 → no mirror ; viewer-right eye: outer is x=10 → mirror
+  drawEye(EYES[face.eyeL || face.eyes] || EYES.neutral, 1, false, 9);
+  drawEye(EYES[face.eyeR || face.eyes] || EYES.neutral, 7, true, 9);
+  drawEye(BROWS[face.browL || face.brows] || BROWS.neutral, 1, false, 12);
+  drawEye(BROWS[face.browR || face.brows] || BROWS.neutral, 7, true, 12);
+
+  const m = MOUTHS[face.mouth] || MOUTHS.neutral;
+  m.forEach((row, r) => {
+    for (let i = 0; i < 6; i++) if (row[i] !== '.') g.set(3 + i, 4 - r, 0, col(row[i]));
+  });
+  if (face.blush) {
+    for (const x of [0, 1, 10, 11]) g.set(x, 5, 0, pal.K);
+  }
+  return g;
+}
+
+const geoCache = new Map();
+function faceGeometry(face, pal, cacheKey) {
+  const key = cacheKey + '|' + JSON.stringify(face);
+  let geo = geoCache.get(key);
+  if (!geo) {
+    geo = buildGeometry(faceGrid(face, pal), { scale: [1, 1, 0.14], offset: [-6, 1, 5.5], ao: false, noise: 0 });
+    geoCache.set(key, geo);
+  }
+  return geo;
+}
+
+// Character rig: builds voxel body parts from a spec, joints hierarchy, pose + face application.
+
+
+
+
+const JOINTS = ['hips', 'spine', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'ankleL', 'legR', 'kneeR', 'ankleR'];
+
+const REST = {
+  pos: [0, 0, 0],
+  hips: [0, 0, 0], spine: [0, 0, 0], head: [0, 0, 0],
+  armL: [0, 0, 4], elbowL: [-6, 0, 0],
+  armR: [0, 0, -4], elbowR: [-6, 0, 0],
+  legL: [0, 0, 0], kneeL: [0, 0, 0],
+  legR: [0, 0, 0], kneeR: [0, 0, 0],
+};
+
+const PARTS = ['head', 'torso', 'pelvis', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR', 'thighL', 'thighR', 'shinL', 'shinR', 'footL', 'footR'];
+
+const fn = (c) => (typeof c === 'function' ? c : () => c);
+
+/** Default body. spec colours may be strings or functions (x,y,z,side) -> colour */
+function buildParts(spec) {
+  const B = {};
+  PARTS.forEach(p => (B[p] = new VoxelGrid()));
+  const S = spec.skin;
+  const top = fn(spec.top), sleeve = fn(spec.sleeve || spec.top), pants = fn(spec.pants);
+  const shoes = fn(spec.shoes), sole = spec.sole || shade(typeof spec.shoes === 'string' ? spec.shoes : '#333', 0.6);
+
+  // ---- head (x 0..11, y 0..13, z 0..10), front = z 10
+  B.head.box(0, 0, 0, 12, 14, 11, S);
+  if (spec.ears !== false) {
+    for (const ex of [-1, 12]) {
+      B.head.box(ex, 6, 4, ex + 1, 10, 7, S);
+      B.head.set(ex, 7, 5, shade(S, 0.8));
+      B.head.set(ex, 8, 5, shade(S, 0.8));
+    }
+  }
+  // nose
+  B.head.box(5, 5, 11, 7, 8, 12, S);
+  B.head.set(5, 5, 11, shade(S, 0.86)); B.head.set(6, 5, 11, shade(S, 0.86));
+  // jaw shading under chin
+  B.head.paint((x, y, z, c) => (y === 0 && c === S ? shade(S, 0.93) : undefined));
+  // neck
+  B.head.box(4, -2, 3, 8, 0, 8, shade(S, 0.92));
+
+  // ---- torso (x -7..6, y 0..19, z -4..3), front = z 3
+  B.torso.box(-7, 0, -4, 7, 20, 4, (x, y, z) => top(x, y, z));
+  // ---- pelvis
+  B.pelvis.box(-6, -4, -3, 6, 0, 3, (x, y, z) => pants(x, y, z, 'P'));
+
+  for (const side of ['L', 'R']) {
+    const up = B['upperArm' + side], fore = B['forearm' + side];
+    up.box(-2, -9, -2, 2, 2, 2, (x, y, z) => (spec.shortSleeves && y < -3 ? S : sleeve(x, y, z, side, 'upper')));
+    fore.box(-2, -8, -2, 2, 1, 2, (x, y, z) => (spec.shortSleeves ? S : sleeve(x, y, z, side, 'fore')));
+    // hand: 4x4x4 + thumb + knuckle line
+    fore.box(-2, -12, -2, 2, -8, 2, S);
+    const inner = side === 'L' ? -2 : 1;
+    fore.set(inner, -9, 2, S); fore.set(inner, -10, 2, S);
+    fore.paint((x, y, z, c) => (c === S && y === -12 ? shade(S, 0.92) : undefined));
+
+    const th = B['thigh' + side], sh = B['shin' + side], ft = B['foot' + side];
+    th.box(-3, -10, -3, 3, 2, 3, (x, y, z) => pants(x, y, z, side, 'thigh'));
+    sh.box(-3, -8, -3, 3, 0, 3, (x, y, z) => (spec.shorts ? (spec.socks && y < -5 ? spec.socks : S) : pants(x, y, z, side, 'shin')));
+    ft.box(-3, -2, -3, 3, 1, 4, (x, y, z) => (y === -2 ? sole : shoes(x, y, z, side)));
+  }
+  if (spec.build) spec.build(B, spec);
+  return B;
+}
+
+let sharedMat = null;
+function material() {
+  if (!sharedMat) sharedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0 });
+  return sharedMat;
+}
+
+function glassesGrid(spec) {
+  // half-voxel resolution grid (cell = 0.5) so the frame is thin like real glasses
+  const g = new VoxelGrid();
+  const c = spec.glasses.color;
+  const round = spec.glasses.style === 'round';
+  for (const x0 of [1, 13]) {            // half-cell x of frame outer-left (eye spans 1..5 / 7..11)
+    const x1 = x0 + 9, y0 = 13, y1 = 20;  // frame outer box in half cells
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+      const border = x === x0 || x === x1 || y === y0 || y === y1;
+      if (!border) continue;
+      if (round && (x === x0 || x === x1) && (y === y0 || y === y1)) continue;
+      if (x >= 10 && x <= 13 && y <= 16) continue; // nose
+      g.set(x, y, 0, c);
+    }
+    if (round) { g.set(x0 + 1, y0 + 1, 0, c); g.set(x1 - 1, y0 + 1, 0, c); g.set(x0 + 1, y1 - 1, 0, c); g.set(x1 - 1, y1 - 1, 0, c); }
+  }
+  g.set(11, 19, 0, c); g.set(12, 19, 0, c); // bridge
+  for (const x of [0, 23]) for (const y of [18, 19]) g.set(x, y, 0, c); // hinges
+  return g;
+}
+
+class Character {
+  constructor(spec) {
+    this.spec = spec;
+    this.id = spec.id;
+    const B = buildParts(spec);
+    const mat = material();
+    const root = (this.root = new THREE.Group());
+    root.name = spec.id;
+    const J = (this.joints = {});
+    const mk = (name, parent, p) => {
+      const g = new THREE.Group();
+      g.name = name; g.position.set(...p); g.userData.base = p.slice();
+      parent.add(g); J[name] = g; return g;
+    };
+    mk('hips', root, [0, 22, 0]);
+    mk('spine', J.hips, [0, 0, 0]);
+    mk('head', J.spine, [0, 20, 0]);
+    mk('armL', J.spine, [9, 18, 0]); mk('elbowL', J.armL, [0, -9, 0]);
+    mk('armR', J.spine, [-9, 18, 0]); mk('elbowR', J.armR, [0, -9, 0]);
+    mk('legL', J.hips, [3.5, -2, 0]); mk('kneeL', J.legL, [0, -10, 0]); mk('ankleL', J.kneeL, [0, -8, 0]);
+    mk('legR', J.hips, [-3.5, -2, 0]); mk('kneeR', J.legR, [0, -10, 0]); mk('ankleR', J.kneeR, [0, -8, 0]);
+
+    const add = (grid, parent, opts) => {
+      if (!grid || !grid.size) return null;
+      const m = new THREE.Mesh(buildGeometry(grid, opts), mat);
+      m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+    };
+    add(B.head, J.head, { offset: [-6, 1, -5.5] });
+    add(B.torso, J.spine);
+    add(B.pelvis, J.hips);
+    for (const s of ['L', 'R']) {
+      add(B['upperArm' + s], J['arm' + s]);
+      add(B['forearm' + s], J['elbow' + s]);
+      add(B['thigh' + s], J['leg' + s]);
+      add(B['shin' + s], J['knee' + s]);
+      add(B['foot' + s], J['ankle' + s]);
+    }
+    if (spec.glasses) add(glassesGrid(spec), J.head, { scale: [0.5, 0.5, 0.6], offset: [-6, 1, 5.66], ao: false, noise: 0 });
+
+    const S = spec.skin;
+    this.palette = {
+      W: spec.eyeWhite || '#f3f1ec', P: spec.pupil || '#1c1a20', L: spec.lid || shade(S, 0.55),
+      B: spec.brow || shade(spec.hair || '#3a2a20', 0.75), D: '#3d1b1d', T: '#f5f2ea', G: '#c24f5a',
+      R: spec.lip || mix(shade(S, 0.8), '#9a4a4a', 0.18), K: spec.blushColor || mix(S, '#ff6b7a', 0.45),
+    };
+    this.faceMesh = new THREE.Mesh(faceGeometry(EMOTIONS.neutral, this.palette, this.id), mat);
+    this.faceMesh.castShadow = false; this.faceMesh.receiveShadow = true;
+    J.head.add(this.faceMesh);
+    this.faceState = null;
+    this.blinkSeed = (spec.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 97 / 97;
+  }
+
+  /** pose: joint -> [rx,ry,rz] degrees, pos -> [x,y,z] offset of hips. ankles auto-plant unless given. */
+  applyPose(pose) {
+    const D = Math.PI / 180;
+    const J = this.joints;
+    for (const name of JOINTS) {
+      const r = pose[name] || REST[name] || [0, 0, 0];
+      J[name].rotation.set(r[0] * D, r[1] * D, r[2] * D, name.startsWith('arm') ? 'XZY' : 'XYZ');
+    }
+    const plant = pose.plant ?? 1;
+    for (const s of ['L', 'R']) {
+      if (!pose['ankle' + s]) {
+        const l = pose['leg' + s] || [0, 0, 0], k = pose['knee' + s] || [0, 0, 0], h = pose.hips || [0, 0, 0];
+        J['ankle' + s].rotation.set(-(l[0] + k[0] + h[0]) * plant * D, 0, 0);
+      }
+    }
+    const p = pose.pos || [0, 0, 0];
+    J.hips.position.set(p[0], 22 + p[1], p[2]);
+  }
+
+  /** face: emotion name or object {eyes, eyeL, eyeR, brows, browL, browR, mouth, gaze:[x,y], blush} */
+  setFace(face) {
+    const f = typeof face === 'string' ? EMOTIONS[face] : face;
+    const key = JSON.stringify(f);
+    if (key === this.faceState) return;
+    this.faceState = key;
+    this.faceMesh.geometry = faceGeometry(f, this.palette, this.id);
+  }
+
+  /** Evaluate clip at time t (seconds) and apply. opts: {blink:true, breathe:true} */
+  update(clip, t, opts = {}) {
+    const { pose, face } = sampleClip(clip, t);
+    // breathing layer
+    if (opts.breathe !== false) {
+      const b = Math.sin((t / 3.6) * Math.PI * 2);
+      pose.spine = add3(pose.spine, [b * 0.8, 0, 0]);
+      pose.head = add3(pose.head, [-b * 0.6, 0, 0]);
+      pose.armL = add3(pose.armL, [0, 0, b * 0.8]);
+      pose.armR = add3(pose.armR, [0, 0, -b * 0.8]);
+    }
+    const f = resolveFace(face);
+    // talking: cycle visemes
+    if (f.mouth === 'talk') f.mouth = VISEME_CYCLE[Math.floor(t * 9 + this.blinkSeed * 5) % VISEME_CYCLE.length];
+    if (opts.mouth) f.mouth = opts.mouth; // external lip-sync override
+    // auto blink
+    if (opts.blink !== false && ['neutral', 'open', 'sad', 'angry', 'focused'].includes(f.eyes) && !f.eyeL && !f.eyeR) {
+      const period = 3.3, ph = ((t + this.blinkSeed * period) % period);
+      if (ph < 0.12) f.eyes = 'blink';
+    }
+    this.applyPose(pose);
+    this.setFace(f);
+  }
+}
+
+function add3(a, b) { a = a || [0, 0, 0]; return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+
+function resolveFace(face) {
+  if (!face) return { ...EMOTIONS.neutral };
+  const base = face.emotion ? EMOTIONS[face.emotion] : {};
+  const { emotion, ...rest } = face;
+  return { ...EMOTIONS.neutral, ...base, ...rest };
+}
+
+// ---------- clip sampling ----------
+const EASE = {
+  linear: u => u,
+  inout: u => 0.5 - 0.5 * Math.cos(Math.PI * u),
+  in: u => u * u,
+  out: u => 1 - (1 - u) * (1 - u),
+  back: u => { const c1 = 1.6, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); },
+};
+
+function prepare(clip) {
+  if (clip._prepared) return clip._prepared;
+  let prev = { ...REST };
+  let prevFace = {};
+  const keys = clip.keys.map(k => {
+    const base = k.rest ? { ...REST } : prev;
+    const full = { ...base, ...(k.pose || {}) };
+    const face = k.face ? (typeof k.face === 'string' ? { emotion: k.face } : (k.face.emotion || !prevFace ? k.face : { ...prevFace, ...k.face })) : prevFace;
+    prev = full; prevFace = face;
+    return { t: k.t, ease: k.ease || 'inout', full, face };
+  });
+  clip._prepared = keys;
+  return keys;
+}
+
+function sampleClip(clip, t) {
+  const keys = prepare(clip);
+  if (clip.loop) t = ((t % clip.duration) + clip.duration) % clip.duration;
+  else t = Math.min(Math.max(t, 0), clip.duration);
+  let i = 0;
+  while (i < keys.length - 1 && keys[i + 1].t <= t) i++;
+  const a = keys[i], b = keys[Math.min(i + 1, keys.length - 1)];
+  const u = b.t > a.t ? EASE[b.ease]((t - a.t) / (b.t - a.t)) : 0;
+  const pose = {};
+  const names = new Set([...Object.keys(a.full), ...Object.keys(b.full)]);
+  for (const n of names) {
+    const va = a.full[n], vb = b.full[n];
+    if (typeof va === 'number' || typeof vb === 'number') { pose[n] = (va ?? 1) + ((vb ?? 1) - (va ?? 1)) * u; continue; }
+    const A = va || REST[n] || [0, 0, 0], Bv = vb || REST[n] || [0, 0, 0];
+    pose[n] = [A[0] + (Bv[0] - A[0]) * u, A[1] + (Bv[1] - A[1]) * u, A[2] + (Bv[2] - A[2]) * u];
+  }
+  const face = { ...(a.face || {}) };
+  if (clip.fn) clip.fn(t, pose, face);
+  return { pose, face };
+}
+
+// Character roster. Every character uses the same skeleton, so every clip works for everyone.
+
+
+// ---------- hair / headwear helpers (head grid: x 0..11, y 0..13, z 0..10, front z=10) ----------
+function messyShortHair(H, c, seed, opts = {}) {
+  const r = rng(seed);
+  const hl = shade(c, 1.18);
+  const pick = () => (r() < 0.22 ? hl : c);
+  H.box(0, 14, 0, 12, 16, 11, pick);                       // top
+  for (let x = 0; x < 12; x++) for (let z = 1; z < 10; z++) if (r() < 0.35) H.set(x, 16, z, pick()); // tufts
+  H.box(0, 3, -1, 12, 16, 0, pick);                        // back
+  for (const sx of [-1, 12]) H.box(sx, 10, -1, sx + 1, 16, 9, pick); // sides above ears
+  for (const sx of [-1, 12]) H.box(sx, 7, 7, sx + 1, 10, 8, pick);  // sideburns
+  H.box(0, 13, 0, 12, 14, 11, pick);                       // hairline replaces forehead top row
+  for (let x = 0; x < 12; x++) {                           // fringe overhang
+    H.set(x, 14, 11, pick()); H.set(x, 15, 11, pick());
+    if (r() < (opts.fringe ?? 0.55)) H.set(x, 13, 11, pick());
+  }
+  H.set(3, 16, 11, pick()); H.set(4, 16, 11, pick()); H.set(8, 16, 11, pick()); // front spikes
+}
+
+function longHair(H, c, seed) {
+  const r = rng(seed);
+  const hl = shade(c, 1.15), dk = shade(c, 0.85);
+  const pick = (y) => (r() < 0.2 ? hl : (y < 4 && r() < 0.4 ? dk : c));
+  H.box(0, 14, 0, 12, 16, 11, (x, y) => pick(y));
+  H.box(1, 16, 1, 11, 17, 10, (x, y) => pick(y));
+  H.box(0, 13, 0, 12, 14, 11, (x, y) => pick(y));
+  // back curtain down past the shoulders
+  H.box(-1, -7, -2, 13, 16, 0, (x, y, z) => (y < -4 && (x === -1 || x === 12) ? undefined : pick(y)));
+  // side curtains (cover ears)
+  for (const sx of [-1, 12]) H.box(sx, -3, -1, sx + 1, 16, 9, (x, y) => pick(y));
+  for (const sx of [-2, 13]) H.box(sx, -5, -1, sx + 1, 14, 6, (x, y) => pick(y));
+  // fringe: swept bangs
+  for (let x = 0; x < 12; x++) {
+    H.set(x, 14, 11, pick(14)); H.set(x, 15, 11, pick(15));
+    if (x < 8) H.set(x, 13, 11, pick(13));
+  }
+  H.set(0, 12, 11, pick(12)); H.set(11, 12, 11, pick(12)); H.set(11, 11, 11, pick(11)); H.set(0, 11, 11, pick(11));
+  H.set(0, 12, 10, pick(12)); H.set(11, 12, 10, pick(12));
+}
+
+function plaid(base, dark, light) {
+  return (x, y, z) => {
+    const a = ((x + 64) % 4 === 0), b = ((y + 64) % 4 === 0);
+    if (a && b) return dark;
+    if (a || b) return shade(base, 0.72);
+    if (((x + y + 64) % 4) === 2 && light) return light;
+    return base;
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+const CHARACTERS = {
+  // 1. Max — the reference look: brown hair, glasses, black suit + turtleneck
+  max: {
+    id: 'max', name: 'Макс', role: 'офисный герой, ведущий',
+    skin: '#f1c39a', hair: '#4a2b1b', lid: '#7a5440',
+    glasses: { color: '#1b1b1d', style: 'rect' },
+    top: (x, y, z) => {
+      const jacket = '#2c2c2f', shirt = '#202023';
+      if (z === 3 && x >= -2 && x < 2) return y % 2 ? shirt : shade(shirt, 1.15); // turtleneck rib
+      return jacket;
+    },
+    sleeve: (x, y, z, side, part) => (part === 'fore' && y <= -7 ? '#d9d9dc' : '#2c2c2f'),
+    pants: '#2a2a2d', shoes: '#18181a', sole: '#0e0e0f',
+    build(B) {
+      const H = B.head, T = B.torso, P = B.pelvis;
+      messyShortHair(H, '#4a2b1b', 7);
+      for (const sx of [-1, 12]) H.box(sx, 9, 6, sx + 1, 10, 11, '#1b1b1d'); // glasses temples
+      // open jacket front panels + grey lapels
+      T.box(-7, -3, 4, 7, 19, 5, (x, y) => {
+        if (x >= -2 && x < 2) return undefined;          // open front shows turtleneck
+        const w = Math.max(0, Math.floor((y - 9) / 3));    // lapel width grows upward
+        const lapel = y >= 9 && ((x >= 2 && x < 3 + w) || (x < -2 && x >= -3 - w));
+        return lapel ? (y >= 17 ? '#8a8a90' : '#616167') : '#2c2c2f';
+      });
+      T.box(-7, -3, -4, 7, 0, 4, (x, y, z) => (x >= -2 && x < 2 && z === 3 ? undefined : '#2c2c2f')); // jacket hem
+      T.box(-3, 20, -3, 3, 22, 3, (x, y) => (y === 21 ? '#26262a' : '#1d1d20'));          // rolled collar
+      // belt + buckle
+      P.box(-6, -1, -3, 6, 0, 3, '#1a1a1c');
+      P.box(-1, -1, 3, 1, 0, 4, '#9a9aa0');
+      // pocket squares / buttons
+      T.set(-6, 3, 5, '#5a5a60'); T.set(5, 3, 5, '#5a5a60');
+    },
+  },
+
+  // 2. Anya — long ginger hair, mint hoodie, jeans, white sneakers
+  anya: {
+    id: 'anya', name: 'Аня', role: 'весёлая подруга, блогер',
+    skin: '#f6cfb0', hair: '#b4532b', lid: '#2b1714', lip: '#d0646c', ears: false,
+    top: (x, y, z) => {
+      const h = '#69c3a2';
+      if (z === 3 && y >= 2 && y < 7 && x >= -4 && x < 4) return shade(h, 0.88); // kangaroo pocket
+      if (y < 2) return shade(h, 0.85);                                            // waistband
+      return h;
+    },
+    sleeve: (x, y, z, side, part) => (part === 'fore' && y <= -6 ? shade('#69c3a2', 0.85) : '#69c3a2'),
+    pants: (x, y, z, side, part) => (part === 'shin' && y < -6 ? '#5c7bb0' : (x + y) % 5 === 0 ? '#4a6699' : '#4f6da3'),
+    shoes: (x, y, z) => (y === 0 && z === 3 ? '#e85d75' : '#f4f4f4'), sole: '#d8d8d8',
+    build(B) {
+      const H = B.head, T = B.torso;
+      longHair(H, '#b4532b', 11);
+      // freckles + blush
+      H.set(2, 5, 10, mix('#f6cfb0', '#c47a5a', 0.5)); H.set(9, 5, 10, mix('#f6cfb0', '#c47a5a', 0.5));
+      // hood bunched behind neck
+      T.box(-5, 17, -6, 5, 21, -3, (x, y) => (y === 20 ? shade('#69c3a2', 0.85) : '#69c3a2'));
+      T.box(-4, 20, -3, 4, 21, 3, shade('#69c3a2', 0.9));      // collar
+      // drawstrings
+      T.box(-2, 13, 4, -1, 19, 5, '#f4f4f4'); T.box(1, 13, 4, 2, 19, 5, '#f4f4f4');
+    },
+  },
+
+  // 3. Boris — bearded guy, knit beanie, plaid flannel, work boots
+  boris: {
+    id: 'boris', name: 'Борис', role: 'добродушный мастер на все руки',
+    skin: '#dca57d', hair: '#5d3b25', brow: '#3e2618', lid: '#7d5236',
+    top: (x, y, z) => (z === 3 && x === 0 && y % 4 === 1 ? '#e8dfcc' : plaid('#b23a30', '#2a1614', '#c4483c')(x, y, z)),
+    sleeve: (x, y, z, side, part) => (part === 'fore' && y <= -6 ? '#dca57d' : plaid('#b23a30', '#2a1614')(x, y, z)),
+    pants: (x, y, z, side, part) => (part === 'shin' && y < -6 ? '#6b4728' : '#34506f'),
+    shoes: (x, y, z) => (z === 3 && y >= -1 ? '#e2c28f' : '#6b4423'), sole: '#2b1d12',
+    build(B) {
+      const H = B.head, T = B.torso, beard = '#5d3b25', bd = '#4a2f1d';
+      const pickB = (x, y, z) => (hash3(x, y, z) < 0.3 ? bd : beard);
+      // beanie
+      H.box(-1, 13, -1, 13, 16, 12, (x, y) => (y === 13 ? '#9c3524' : (x % 2 ? '#c8472f' : '#b8402a')));
+      H.box(0, 16, 0, 12, 17, 11, (x) => (x % 2 ? '#c8472f' : '#b8402a'));
+      H.box(1, 17, 1, 11, 18, 10, '#c8472f');
+      H.box(5, 18, 4, 7, 20, 6, '#f0e6d6');                    // pompom
+      // beard: cheeks/chin layer, mouth hole, below-chin bulk
+      H.paint((x, y, z, c) => (y <= 5 && z >= 5 && x >= 0 && x <= 11 && !(z === 11) ? pickB(x, y, z) : undefined));
+      H.box(0, -2, 11, 12, 6, 12, (x, y, z) => (y >= 1 && y <= 4 && x >= 3 && x <= 8 ? undefined : (x >= 5 && x <= 6 && y >= 5 ? undefined : pickB(x, y, z))));
+      H.box(1, -3, 4, 11, 0, 11, pickB);
+      H.box(3, 1, 10, 9, 5, 11, '#c98f6b');                    // lips area inside the beard
+      for (const sx of [-1, 12]) H.box(sx, 0, 5, sx + 1, 6, 11, pickB);
+      // moustache over upper lip
+      H.box(2, 5, 12, 10, 6, 13, (x) => (x === 5 || x === 6 ? undefined : bd));
+      H.box(5, 5, 11, 7, 6, 12, bd);
+      // hair visible under beanie at back
+      H.box(0, 9, -1, 12, 13, 0, '#5d3b25');
+      // shirt collar + undershirt
+      T.box(-4, 20, -3, 4, 21, 3, plaid('#b23a30', '#2a1614'));
+      T.box(-1, 17, 4, 1, 20, 5, '#e8dfcc');
+    },
+  },
+
+  // 4. Lev Arkadievich — professor: grey fringe, moustache, round gold glasses, vest + bow tie
+  lev: {
+    id: 'lev', name: 'Лев Аркадьевич', role: 'профессор, учёный',
+    skin: '#eec4a4', hair: '#cfcfcf', brow: '#a9a9a9', lid: '#94705a',
+    glasses: { color: '#c9a24a', style: 'round' },
+    top: (x, y, z) => {
+      const vest = '#7b5236', shirt = '#bcd3ea';
+      if (z === 3) {
+        const v = 19 - y; // V-neck
+        if (Math.abs(x + 0.5) < v * 0.35 && y > 12) return shirt;
+        if (x === 0 && y % 4 === 0 && y < 13) return '#d8c08a'; // buttons
+      }
+      if (y >= 17 && (x < -5 || x > 4)) return shirt; // shirt at shoulders
+      return (x + y) % 2 === 0 ? vest : shade(vest, 0.93); // knit texture
+    },
+    sleeve: '#bcd3ea', pants: '#b9a27c', shoes: '#4a2c1b', sole: '#231409',
+    build(B) {
+      const H = B.head, T = B.torso, grey = '#cfcfcf', gd = '#b2b2b2';
+      const pickG = (x, y, z) => (hash3(x, y, z) < 0.3 ? gd : grey);
+      // bald top, grey fringe around sides & back
+      H.box(0, 3, -1, 12, 12, 0, pickG);
+      for (const sx of [-1, 12]) H.box(sx, 7, -1, sx + 1, 12, 4, pickG);
+      for (const sx of [-1, 12]) H.box(sx, 10, 4, sx + 1, 12, 8, pickG);
+      for (const sx of [-1, 12]) H.box(sx, 9, 6, sx + 1, 10, 11, '#c9a24a'); // glasses temples
+      // big moustache
+      H.box(1, 4, 11, 11, 6, 12, (x, y) => (y === 4 && x >= 3 && x <= 8 ? undefined : (x >= 5 && x <= 6 && y === 5 ? undefined : pickG(x, y, 11))));
+      H.box(5, 5, 12, 7, 6, 13, gd);
+      H.set(0, 4, 11, gd); H.set(11, 4, 11, gd);
+      // wrinkles
+      H.set(2, 13, 10, shade('#eec4a4', 0.9)); H.set(3, 13, 10, shade('#eec4a4', 0.9)); H.set(8, 13, 10, shade('#eec4a4', 0.9));
+      // tummy
+      T.box(-5, 3, 4, 5, 11, 5, (x, y) => (x === 0 && y % 4 === 0 ? '#d8c08a' : (x + y) % 2 === 0 ? '#7b5236' : shade('#7b5236', 0.93)));
+      // collar + bow tie
+      T.box(-3, 20, -3, 3, 21, 3, '#d2e2f2');
+      T.box(-2, 18, 4, 2, 20, 5, (x) => (x === -1 || x === 0 ? '#8e1f2a' : '#b0283a'));
+    },
+  },
+
+  // 5. Zara — business lady: high bun, purple blazer, white blouse, red shoes
+  zara: {
+    id: 'zara', name: 'Зара', role: 'начальница, деловая леди',
+    skin: '#8e5a3c', hair: '#1c1513', lid: '#140d0c', brow: '#140d0c', lip: '#9b2b3a',
+    top: (x, y, z) => '#5a3e9e',
+    sleeve: (x, y, z, side, part) => (part === 'fore' && y <= -7 ? '#f1ede6' : '#5a3e9e'),
+    pants: '#232327', shoes: '#b3263a', sole: '#5e101b',
+    build(B) {
+      const H = B.head, T = B.torso, P = B.pelvis, c = '#1c1513', hl = '#3a2a26';
+      const pick = (x, y, z) => (hash3(x, y, z) < 0.18 ? hl : c);
+      // sleek hair + high bun
+      H.box(0, 13, 0, 12, 16, 11, pick);
+      H.box(0, 5, -1, 12, 16, 0, pick);
+      for (const sx of [-1, 12]) H.box(sx, 10, -1, sx + 1, 16, 8, pick);
+      for (let x = 0; x < 12; x++) { H.set(x, 14, 11, pick(x, 14, 11)); H.set(x, 15, 11, pick(x, 15, 11)); }
+      H.set(0, 13, 11, c); H.set(1, 13, 11, c); H.set(10, 13, 11, c); H.set(11, 13, 11, c);
+      H.box(3, 16, 2, 9, 20, 8, pick); H.box(4, 20, 3, 8, 21, 7, pick);
+      H.box(2, 16, 3, 10, 17, 7, '#c9a24a');                  // hair band
+      // gold earrings
+      for (const sx of [-1, 12]) { H.set(sx, 5, 5, '#e1b84f'); H.set(sx, 4, 5, '#e1b84f'); }
+      // blazer: V opening with blouse, lapels, gold button
+      T.box(-7, -2, 4, 7, 19, 5, (x, y) => {
+        const v = Math.max(0, (y - 7) * 0.4);
+        if (Math.abs(x + 0.5) < v) return undefined;
+        if (Math.abs(x + 0.5) < v + 1.6 && y > 8) return '#47307f';
+        return '#5a3e9e';
+      });
+      T.paint((x, y, z, c) => (z === 3 && Math.abs(x + 0.5) < Math.max(0, (y - 7) * 0.4) ? '#f1ede6' : undefined));
+      T.box(-7, -2, -4, 7, 0, 4, (x, y, z) => (z === 3 ? '#5a3e9e' : '#5a3e9e'));
+      T.set(-1, 6, 5, '#e1b84f'); T.set(0, 6, 5, '#e1b84f');
+      T.box(-3, 20, -3, 3, 21, 3, '#f1ede6');
+      // necklace
+      T.set(-1, 16, 4, '#e1b84f'); T.set(0, 16, 4, '#e1b84f');
+    },
+  },
+
+  // 6. Tim — teen gamer: blue cap, yellow tee, shorts, red sneakers
+  tim: {
+    id: 'tim', name: 'Тим', role: 'подросток, геймер',
+    skin: '#e3ae80', hair: '#2a1d16', lid: '#6d4630',
+    shortSleeves: true, shorts: true, socks: '#f4f4f4',
+    top: (x, y, z) => {
+      const tee = '#f3c22f';
+      // star logo
+      const sx = x + 0.5, sy = y - 11;
+      if (z === 3 && ((Math.abs(sx) <= 1 && Math.abs(sy) <= 3) || (Math.abs(sy) <= 0.5 && Math.abs(sx) <= 3) || (Math.abs(sx) <= 2 && Math.abs(sy) <= 1))) return '#e2552f';
+      if (y >= 19) return shade(tee, 0.9);
+      return tee;
+    },
+    sleeve: (x, y) => (y <= -3 ? '#e3ae80' : '#f3c22f'),
+    pants: (x, y, z, side, part) => (part === 'thigh' && y < -6 ? '#e3ae80' : '#4c6c9c'),
+    shoes: (x, y, z) => (y === 0 ? '#ffffff' : '#d8323b'), sole: '#f2f2f2',
+    build(B) {
+      const H = B.head, T = B.torso, cap = '#2f6fd1';
+      // short hair peeking out
+      H.box(0, 3, -1, 12, 13, 0, '#2a1d16');
+      for (const sx of [-1, 12]) H.box(sx, 10, -1, sx + 1, 13, 8, '#2a1d16');
+      H.box(0, 13, 0, 12, 14, 11, '#2a1d16');
+      // cap dome + brim + button
+      H.box(-1, 13, -1, 13, 16, 11, (x, y) => (y === 13 ? shade(cap, 0.85) : cap));
+      H.box(0, 16, 0, 12, 17, 11, cap);
+      H.box(5, 17, 4, 7, 18, 6, shade(cap, 0.8));
+      H.box(0, 14, 11, 12, 15, 16, (x, y, z) => (z >= 14 && (x === 0 || x === 11) ? undefined : shade(cap, 0.9)));
+      H.box(2, 15, 11, 10, 16, 12, '#ffffff');                  // logo strip
+      // shorts hem on thighs is via pants fn; neck rib
+      T.box(-3, 19, -3, 3, 20, 4, shade('#f3c22f', 0.85));
+    },
+  },
+};
+
+const CHARACTER_IDS = Object.keys(CHARACTERS);
+
+// Animation clips. Key poses use "carry" semantics: joints not mentioned keep the previous key's value.
+// `rest: true` resets everything to REST before applying the key's pose. Angles in degrees.
+// Arms (order XZY): rx<0 swings forward/up, armL rz>0 / armR rz<0 raises sideways. elbow rx<0 bends.
+// Legs: rx<0 forward, knee rx>0 bends. pos = hips offset in voxels.
+
+
+const S = Math.sin, PI2 = Math.PI * 2;
+const crouch = (a) => ({ legL: [-a, 0, 0], legR: [-a, 0, 0], kneeL: [2 * a, 0, 0], kneeR: [2 * a, 0, 0], pos: [0, -(20 - 20 * Math.cos(a * Math.PI / 180)), 0] });
+
+const CLIPS = {
+  idle: {
+    name: 'Ожидание (дыхание)', duration: 4, loop: true,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 2, pose: { spine: [1, 0, 1], head: [-2, 4, -2], hips: [0, 0, -1] } },
+      { t: 4, rest: true },
+    ],
+  },
+
+  talk: {
+    name: 'Говорит с жестами', duration: 4, loop: true,
+    keys: [
+      { t: 0, rest: true, face: { emotion: 'smile', mouth: 'talk' } },
+      { t: 0.6, pose: { armR: [-30, 0, -8], elbowR: [-75, 0, 10], head: [4, -6, 2], spine: [3, -4, 0] } },
+      { t: 1.4, pose: { armR: [-10, 0, -6], elbowR: [-30, 0, 0], armL: [-35, 0, 10], elbowL: [-70, 0, -10], head: [-3, 6, -2], spine: [2, 4, 0] }, face: { brows: 'raised' } },
+      { t: 2.3, pose: { armR: [-30, 0, -25], elbowR: [-70, 0, 0], armL: [-30, 0, 25], elbowL: [-70, 0, 0], head: [5, 0, 0], spine: [4, 0, 0] }, face: { brows: 'neutral' } },
+      { t: 3.2, pose: { armR: [-15, 0, -6], elbowR: [-40, 0, 0], armL: [-8, 0, 6], elbowL: [-25, 0, 0], head: [0, -3, 2], spine: [1, -2, 0] } },
+      { t: 4, rest: true },
+    ],
+    fn(t, pose) { pose.head[0] += 2.5 * S(t * PI2 * 1.7); },
+  },
+
+  wave: {
+    name: 'Машет рукой (привет)', duration: 3, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'smile' },
+      { t: 0.45, pose: { armR: [-10, 0, -150], elbowR: [-5, 0, 25], spine: [0, 0, 4], head: [0, 0, -5] }, ease: 'back', face: 'happy' },
+      { t: 0.75, pose: { elbowR: [-5, 0, -25] } },
+      { t: 1.05, pose: { elbowR: [-5, 0, 25] } },
+      { t: 1.35, pose: { elbowR: [-5, 0, -25] } },
+      { t: 1.65, pose: { elbowR: [-5, 0, 25] } },
+      { t: 1.95, pose: { elbowR: [-5, 0, -15] } },
+      { t: 2.5, rest: true, face: 'smile' },
+      { t: 3, rest: true },
+    ],
+  },
+
+  walk: {
+    name: 'Ходьба (цикл)', duration: 1.1, loop: true,
+    keys: [{ t: 0, rest: true, face: 'neutral' }, { t: 1.1, rest: true }],
+    fn(t, pose) {
+      const p = (t / 1.1) * PI2;
+      const sw = 28;
+      const L = sw * S(p), R = -sw * S(p);
+      pose.legL = [L, 0, 0]; pose.legR = [R, 0, 0];
+      pose.kneeL = [6 + 42 * Math.max(0, -Math.cos(p)) ** 1.5, 0, 0];
+      pose.kneeR = [6 + 42 * Math.max(0, Math.cos(p)) ** 1.5, 0, 0];
+      pose.plant = 0.55;
+      pose.armL = [-0.9 * L, 0, 5]; pose.armR = [-0.9 * R, 0, -5];
+      pose.elbowL = [-18 - 12 * Math.max(0, S(p)), 0, 0]; pose.elbowR = [-18 - 12 * Math.max(0, -S(p)), 0, 0];
+      pose.hips = [0, 6 * S(p), 0];
+      pose.spine = [3, -9 * S(p), 0];
+      pose.head = [-2, 3 * S(p), 0];
+      pose.pos = [0, -0.9 * Math.abs(S(p)) + 0.2, 0];
+    },
+  },
+
+  celebrate: {
+    name: 'Радость, прыжок', duration: 2.6, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'smile' },
+      { t: 0.35, pose: { ...crouch(32), spine: [18, 0, 0], head: [-10, 0, 0], armL: [30, 0, 10], armR: [30, 0, -10], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0] }, face: 'happy' },
+      { t: 0.62, pose: { legL: [-8, 0, 0], legR: [-8, 0, 0], kneeL: [12, 0, 0], kneeR: [12, 0, 0], pos: [0, 9, 0], spine: [-6, 0, 0], head: [-8, 0, 0], armL: [0, 0, 165], armR: [0, 0, -165], elbowL: [0, 0, -10], elbowR: [0, 0, 10], plant: 0.3 }, ease: 'out', face: 'laugh' },
+      { t: 0.85, pose: { ...crouch(20), pos: [0, 11, 0], kneeL: [55, 0, 0], kneeR: [55, 0, 0], plant: 0.2 }, ease: 'out' },
+      { t: 1.12, pose: { ...crouch(28), spine: [10, 0, 0], plant: 1 }, ease: 'in' },
+      { t: 1.4, pose: { ...crouch(6), spine: [0, 0, 0], head: [-6, 0, 0], armL: [-20, 0, 150], armR: [-20, 0, -150], elbowL: [-40, 0, 0], elbowR: [-40, 0, 0] } },
+      { t: 1.65, pose: { armL: [-20, 0, 120], armR: [-20, 0, -120], elbowL: [-70, 0, 0], elbowR: [-70, 0, 0], ...crouch(0) } },
+      { t: 1.9, pose: { armL: [-20, 0, 150], armR: [-20, 0, -150], elbowL: [-40, 0, 0], elbowR: [-40, 0, 0] } },
+      { t: 2.6, rest: true, face: 'happy' },
+    ],
+  },
+
+  laugh: {
+    name: 'Смеётся', duration: 3, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'smile' },
+      { t: 0.4, pose: { spine: [-12, 0, 0], head: [-14, 0, 3], armL: [-25, 0, -8], armR: [-25, 0, 8], elbowL: [-85, 0, 0], elbowR: [-85, 0, 0] }, face: 'laugh' },
+      { t: 1.4, pose: { spine: [14, 0, 0], head: [8, 0, -3] } },
+      { t: 2.2, pose: { spine: [-6, 0, 0], head: [-8, 0, 2] } },
+      { t: 3, rest: true, face: 'happy' },
+    ],
+    fn(t, pose) {
+      if (t > 0.3 && t < 2.5) {
+        const k = Math.sin(Math.PI * (t - 0.3) / 2.2);
+        pose.spine[0] += 2.5 * k * S(t * PI2 * 6);
+        pose.pos = [0, 0.5 * k * Math.abs(S(t * PI2 * 3)), 0];
+        pose.head[0] += 2 * k * S(t * PI2 * 6 + 1);
+      }
+    },
+  },
+
+  sad: {
+    name: 'Грустит, вздыхает', duration: 3.6, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.5, face: 'sad' },
+      { t: 1.1, pose: { head: [24, 0, 4], spine: [12, 0, 0], armL: [6, 0, 2], armR: [6, 0, -2], elbowL: [-2, 0, 0], elbowR: [-2, 0, 0], pos: [0, -0.4, 0] } },
+      { t: 1.8, pose: { head: [14, 0, 2], spine: [4, 0, 0], pos: [0, 0.2, 0] }, face: { emotion: 'sad', eyes: 'closed' } },
+      { t: 2.5, pose: { head: [26, 0, 5], spine: [13, 0, 0], pos: [0, -0.5, 0] }, face: 'sad' },
+      { t: 3.6, rest: true },
+    ],
+  },
+
+  angry: {
+    name: 'Злится, топает', duration: 3, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.3, face: 'angry' },
+      { t: 0.5, pose: { armL: [-15, 0, 22], armR: [-15, 0, -22], elbowL: [-95, 0, 0], elbowR: [-95, 0, 0], spine: [10, 0, 0], head: [-6, 0, 0] } },
+      { t: 0.85, pose: { legR: [-35, 0, 0], kneeR: [55, 0, 0], plant: 0.4, spine: [6, 0, 0] }, ease: 'out' },
+      { t: 1.05, pose: { legR: [0, 0, 0], kneeR: [0, 0, 0], plant: 1, spine: [14, 0, 0], pos: [0, -0.8, 0] }, ease: 'in' },
+      { t: 1.3, pose: { pos: [0, 0, 0], spine: [10, 0, 0] } },
+      { t: 2.4, pose: { spine: [9, -6, 0], head: [-4, 8, 0] } },
+      { t: 3, rest: true },
+    ],
+    fn(t, pose) {
+      if (t > 1.05 && t < 2.5) {
+        const k = 1 - (t - 1.05) / 1.45;
+        pose.armL[2] += 4 * k * S(t * PI2 * 9);
+        pose.armR[2] -= 4 * k * S(t * PI2 * 9);
+        pose.head[2] = (pose.head[2] || 0) + 2 * k * S(t * PI2 * 11);
+      }
+    },
+  },
+
+  surprised: {
+    name: 'Удивление', duration: 2.6, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.2, face: 'surprised' },
+      { t: 0.32, pose: { spine: [-12, 0, 0], head: [-12, 0, 0], armL: [-40, 0, 35], armR: [-40, 0, -35], elbowL: [-85, 0, 0], elbowR: [-85, 0, 0], pos: [0, 1.4, -1], plant: 0.6 }, ease: 'out' },
+      { t: 0.55, pose: { spine: [-8, 0, 0], head: [-8, 0, 0], pos: [0, 0, -1.5], plant: 1 }, ease: 'in' },
+      { t: 1.9, pose: { spine: [-6, 0, 0], head: [-6, 0, 3], armL: [-35, 0, 30], armR: [-35, 0, -30] } },
+      { t: 2.6, rest: true, face: 'neutral' },
+    ],
+  },
+
+  think: {
+    name: 'Думает (рука у подбородка)', duration: 4.2, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.7, pose: { armR: [-50, 0, 48], elbowR: [-88, -58, 0], armL: [-30, 0, -40], elbowL: [-95, 0, 0], head: [-6, 12, 6], spine: [0, 4, 0] }, face: 'thinking' },
+      { t: 2.0, pose: { head: [-10, 16, 8] }, face: { emotion: 'thinking', gaze: [1, 1] } },
+      { t: 3.0, pose: { head: [-4, 6, 4] }, face: { emotion: 'thinking', gaze: [-1, 0] } },
+      { t: 3.5, face: 'smile' },
+      { t: 4.2, rest: true },
+    ],
+  },
+
+  point: {
+    name: 'Указывает вперёд', duration: 2.6, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.45, pose: { armR: [-88, 0, -22], elbowR: [-6, 0, 0], spine: [0, -12, 0], head: [-2, -6, 0], armL: [-10, 0, 8] }, ease: 'back', face: 'wink' },
+      { t: 1.9, pose: { armR: [-82, 0, -20] }, face: { emotion: 'smile' } },
+      { t: 2.6, rest: true },
+    ],
+  },
+
+  facepalm: {
+    name: 'Фейспалм', duration: 3.2, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.3, face: 'bored' },
+      { t: 0.75, pose: { armR: [-80, 0, 60], elbowR: [-85, -50, 0], head: [22, 0, 0], spine: [10, 0, 0] }, face: { emotion: 'sad', eyes: 'closed' } },
+      { t: 2.3, pose: { head: [26, 6, 0], armR: [-82, 0, 60] } },
+      { t: 2.6, face: 'bored' },
+      { t: 3.2, rest: true },
+    ],
+    fn(t, pose) { if (t > 0.8 && t < 2.3) pose.head[1] += 6 * S((t - 0.8) * PI2 * 1.3); },
+  },
+
+  shrug: {
+    name: 'Пожимает плечами', duration: 2.4, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.45, pose: { armL: [-25, 0, 35], armR: [-25, 0, -35], elbowL: [-75, 0, 35], elbowR: [-75, 0, -35], head: [0, 0, 10], spine: [0, 0, -2], pos: [0, 0.6, 0] }, ease: 'back', face: { emotion: 'skeptical', mouth: 'wavy' } },
+      { t: 1.6, pose: { head: [0, 0, 8] } },
+      { t: 2.4, rest: true, face: 'neutral' },
+    ],
+  },
+
+  yes: {
+    name: 'Кивает «да»', duration: 1.8, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'smile' },
+      { t: 0.3, pose: { head: [16, 0, 0] } }, { t: 0.6, pose: { head: [-6, 0, 0] } },
+      { t: 0.9, pose: { head: [16, 0, 0] } }, { t: 1.2, pose: { head: [-4, 0, 0] }, face: 'happy' },
+      { t: 1.8, rest: true },
+    ],
+  },
+
+  no: {
+    name: 'Мотает головой «нет»', duration: 1.8, loop: false,
+    keys: [
+      { t: 0, rest: true, face: 'neutral' },
+      { t: 0.25, pose: { head: [4, 25, 0] }, face: 'skeptical' }, { t: 0.55, pose: { head: [4, -25, 0] } },
+      { t: 0.85, pose: { head: [4, 22, 0] } }, { t: 1.15, pose: { head: [4, -15, 0] } },
+      { t: 1.8, rest: true },
+    ],
+  },
+};
+
+const CLIP_IDS = Object.keys(CLIPS);
+
+
+// Scene, lights, camera and a transparent shadow-catcher floor, tuned to the reference look.
+
+
+function createStage({ width = 1024, height = 1024, transparent = true, background = null, canvas } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: transparent, preserveDrawingBuffer: true, canvas });
+  renderer.setPixelRatio(1);
+  renderer.setSize(width, height, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (transparent) renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  if (background) scene.background = new THREE.Color(background);
+
+  const camera = new THREE.PerspectiveCamera(24, width / height, 1, 2000);
+  camera.position.set(0, 34, 175);
+  camera.lookAt(0, 31, 0);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xcbbfae, 1.55));
+  const key = new THREE.DirectionalLight(0xffffff, 2.1);
+  key.position.set(45, 150, 120);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  const sc = key.shadow.camera;
+  sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 10; sc.far = 400;
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.25; key.shadow.radius = 5;
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xe6eeff, 0.7);
+  fill.position.set(-90, 40, 60);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+  rim.position.set(0, 60, -120);
+  scene.add(rim);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.ShadowMaterial({ opacity: 0.22 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  return { renderer, scene, camera, key, fill, ground, render: () => renderer.render(scene, camera) };
+}
+
+const EMO_RU = { neutral: 'спокойствие', smile: 'улыбка', happy: 'радость', laugh: 'смех', sad: 'грусть', angry: 'злость', surprised: 'удивление', thinking: 'раздумье', skeptical: 'скепсис', wink: 'подмигивание', worried: 'тревога', bored: 'скука', embarrassed: 'смущение', determined: 'решимость' };
+const el = id => document.getElementById(id);
+const host = el('stage');
+const st = createStage({ width: 800, height: 800, transparent: true });
+host.appendChild(st.renderer.domElement);
+let state = { id: 'max', clip: 'idle', all: false, playing: true, t: 0, speed: 1, emo: null };
+try { const s = JSON.parse(localStorage.getItem('vt-state') || 'null'); if (s && CHARACTERS[s.id] && CLIPS[s.clip]) Object.assign(state, { id: s.id, clip: s.clip }); } catch {}
+const cast = {};
+for (const id of CHARACTER_IDS) { cast[id] = new Character(CHARACTERS[id]); st.scene.add(cast[id].root); }
+
+let yaw = 0, pitch = 0.05, dist = 175;
+function frameCamera() {
+  const w = host.clientWidth, h = host.clientHeight;
+  st.renderer.setSize(w, h, false); st.camera.aspect = w / h;
+  const wide = state.all ? 1.9 : 1;
+  const d = dist * wide * Math.max(1, 0.9 / (w / h) * (state.all ? 1.5 : 0.75));
+  st.camera.position.set(Math.sin(yaw) * d, 38 + Math.sin(pitch) * d, Math.cos(yaw) * d);
+  st.camera.lookAt(0, 36, 0); st.camera.updateProjectionMatrix();
+}
+let drag = null;
+const cv = st.renderer.domElement;
+cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (!drag) return; yaw = drag[2] - (e.clientX - drag[0]) * 0.008; pitch = Math.max(-0.1, Math.min(0.7, drag[3] + (e.clientY - drag[1]) * 0.005)); });
+cv.addEventListener('pointerup', () => drag = null);
+
+function chips(box, items, key, onPick) {
+  box.innerHTML = '';
+  for (const [k, label] of items) {
+    const b = document.createElement('button'); b.textContent = label; b.dataset.k = k;
+    b.addEventListener('click', () => onPick(k)); box.appendChild(b);
+  }
+}
+const sync = () => {
+  for (const b of el('chars').children) b.setAttribute('aria-pressed', String(!state.all && b.dataset.k === state.id));
+  el('all').setAttribute('aria-pressed', String(state.all));
+  for (const b of el('clips').children) b.setAttribute('aria-pressed', String(b.dataset.k === state.clip));
+  for (const b of el('emos').children) b.setAttribute('aria-pressed', String(b.dataset.k === (state.emo || '')));
+  const c = CHARACTERS[state.id];
+  el('whoName').textContent = state.all ? 'Вся труппа' : c.name;
+  el('whoRole').textContent = state.all ? CHARACTER_IDS.length + ' персонажей' : c.role;
+  el('play').textContent = state.playing ? 'Пауза' : 'Играть';
+  try { localStorage.setItem('vt-state', JSON.stringify({ id: state.id, clip: state.clip })); } catch {}
+};
+chips(el('chars'), CHARACTER_IDS.map(id => [id, CHARACTERS[id].name.split(' ')[0]]), 'id', k => { state.id = k; state.all = false; sync(); });
+chips(el('clips'), CLIP_IDS.map(id => [id, CLIPS[id].name]), 'clip', k => { state.clip = k; state.t = 0; sync(); });
+chips(el('emos'), [['', 'Как в анимации'], ...Object.keys(EMOTIONS).map(e => [e, EMO_RU[e] || e])], 'emo', k => { state.emo = k || null; sync(); });
+el('all').addEventListener('click', () => { state.all = !state.all; sync(); });
+el('play').addEventListener('click', () => { state.playing = !state.playing; sync(); });
+el('scrub').addEventListener('input', e => { state.playing = false; state.t = CLIPS[state.clip].duration * e.target.value / 1000; sync(); });
+el('speed').addEventListener('input', e => { state.speed = +e.target.value; el('speedV').textContent = state.speed.toFixed(1) + '×'; });
+sync();
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) state.speed = 0.5;
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const clip = CLIPS[state.clip];
+  if (state.playing) { state.t += dt * state.speed; if (state.t > clip.duration + (clip.loop ? 0 : 0.6)) state.t = 0; }
+  const tt = clip.loop ? state.t % clip.duration : Math.min(state.t, clip.duration);
+  CHARACTER_IDS.forEach((id, i) => {
+    const ch = cast[id], on = state.all || id === state.id;
+    ch.root.visible = on; if (!on) return;
+    ch.root.position.x = state.all ? (i - (CHARACTER_IDS.length - 1) / 2) * 30 : 0;
+    ch.update(clip, tt + (state.all ? i * 0.13 : 0));
+    if (state.emo) ch.setFace(state.emo);
+  });
+  el('scrub').value = Math.round(1000 * tt / clip.duration);
+  el('time').textContent = tt.toFixed(2) + ' / ' + clip.duration.toFixed(2) + ' с';
+  frameCamera(); st.render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>

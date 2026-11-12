@@ -1,0 +1,138 @@
+<title>Воксельная труппа</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Manrope:wght@400;600;700&display=swap">
+<style>
+/* Layout: stage (3D canvas) left, control rail right; stacks on phones */
+:root {
+  --bg: #e9e7e2; --panel: #f7f6f3; --ink: #1d1c1f; --muted: #6b6870; --line: #d6d3cc;
+  --accent: #2f6fd1; --accent-ink: #ffffff; --stage: #f3f1ec;
+  --f-pixel: 'Silkscreen', ui-monospace, monospace; --f-body: 'Manrope', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17171a; --panel: #212125; --ink: #ecebef; --muted: #9c99a3; --line: #34343a;
+  --accent: #6f9df0; --accent-ink: #0d1020; --stage: #2a2a2f; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #17171a; --panel: #212125; --ink: #ecebef; --muted: #9c99a3; --line: #34343a;
+  --accent: #6f9df0; --accent-ink: #0d1020; --stage: #2a2a2f; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; box-sizing: border-box; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; height: 100%; min-height: 560px; }
+.stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; min-height: 360px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+.stage .who { position: absolute; left: 16px; top: 14px; pointer-events: none; }
+.who h1 { font-family: var(--f-pixel); font-weight: 400; font-size: 26px; margin: 0; letter-spacing: .02em; }
+.who p { margin: 2px 0 0; color: var(--muted); }
+.hint { position: absolute; right: 14px; bottom: 12px; color: var(--muted); font-size: 12px; pointer-events: none; }
+.rail { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.rail h2 { font-family: var(--f-pixel); font-weight: 400; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 600 13px var(--f-body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.chips button:hover { border-color: var(--muted); }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.transport button { font: 700 13px var(--f-body); background: var(--ink); color: var(--panel); border: 0; border-radius: 4px; padding: 8px 14px; cursor: pointer; min-width: 84px; }
+.transport input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; min-width: 76px; text-align: right; }
+.row { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.row input { flex: 1; accent-color: var(--accent); }
+.note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+@media (max-width: 820px) { .app { grid-template-columns: 1fr; height: auto; } .stage { height: 62vh; } }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="who"><h1 id="whoName">Макс</h1><p id="whoRole"></p></div>
+    <div class="hint">Тяните, чтобы вращать камеру</div>
+  </div>
+  <aside class="rail">
+    <section><h2>Персонаж</h2><div class="chips" id="chars"></div>
+      <div class="chips" style="margin-top:6px"><button id="all" aria-pressed="false">Все вместе</button></div></section>
+    <section><h2>Анимация</h2><div class="chips" id="clips"></div></section>
+    <section>
+      <div class="transport"><button id="play">Пауза</button><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Время"><span class="time" id="time">0.00 / 0.00 с</span></div>
+      <div class="row" style="margin-top:10px"><label for="speed">Скорость</label><input id="speed" type="range" min="0.1" max="2" step="0.05" value="1"><span id="speedV" class="time" style="min-width:40px">1.0×</span></div>
+    </section>
+    <section><h2>Эмоция поверх анимации</h2><div class="chips" id="emos"></div></section>
+    <p class="note">Все персонажи собраны на одном скелете из 13 суставов, поэтому любая анимация подходит любому из них. Лицо — пиксельные слои: глаза, брови и рот меняются независимо, рот умеет «говорить» для липсинка.</p>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+/*__BUNDLE__*/
+const EMO_RU = { neutral: 'спокойствие', smile: 'улыбка', happy: 'радость', laugh: 'смех', sad: 'грусть', angry: 'злость', surprised: 'удивление', thinking: 'раздумье', skeptical: 'скепсис', wink: 'подмигивание', worried: 'тревога', bored: 'скука', embarrassed: 'смущение', determined: 'решимость' };
+const el = id => document.getElementById(id);
+const host = el('stage');
+const st = createStage({ width: 800, height: 800, transparent: true });
+host.appendChild(st.renderer.domElement);
+let state = { id: 'max', clip: 'idle', all: false, playing: true, t: 0, speed: 1, emo: null };
+try { const s = JSON.parse(localStorage.getItem('vt-state') || 'null'); if (s && CHARACTERS[s.id] && CLIPS[s.clip]) Object.assign(state, { id: s.id, clip: s.clip }); } catch {}
+const cast = {};
+for (const id of CHARACTER_IDS) { cast[id] = new Character(CHARACTERS[id]); st.scene.add(cast[id].root); }
+
+let yaw = 0, pitch = 0.05, dist = 175;
+function frameCamera() {
+  const w = host.clientWidth, h = host.clientHeight;
+  st.renderer.setSize(w, h, false); st.camera.aspect = w / h;
+  const wide = state.all ? 1.9 : 1;
+  const d = dist * wide * Math.max(1, 0.9 / (w / h) * (state.all ? 1.5 : 0.75));
+  st.camera.position.set(Math.sin(yaw) * d, 38 + Math.sin(pitch) * d, Math.cos(yaw) * d);
+  st.camera.lookAt(0, 36, 0); st.camera.updateProjectionMatrix();
+}
+let drag = null;
+const cv = st.renderer.domElement;
+cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, yaw, pitch]; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (!drag) return; yaw = drag[2] - (e.clientX - drag[0]) * 0.008; pitch = Math.max(-0.1, Math.min(0.7, drag[3] + (e.clientY - drag[1]) * 0.005)); });
+cv.addEventListener('pointerup', () => drag = null);
+
+function chips(box, items, key, onPick) {
+  box.innerHTML = '';
+  for (const [k, label] of items) {
+    const b = document.createElement('button'); b.textContent = label; b.dataset.k = k;
+    b.addEventListener('click', () => onPick(k)); box.appendChild(b);
+  }
+}
+const sync = () => {
+  for (const b of el('chars').children) b.setAttribute('aria-pressed', String(!state.all && b.dataset.k === state.id));
+  el('all').setAttribute('aria-pressed', String(state.all));
+  for (const b of el('clips').children) b.setAttribute('aria-pressed', String(b.dataset.k === state.clip));
+  for (const b of el('emos').children) b.setAttribute('aria-pressed', String(b.dataset.k === (state.emo || '')));
+  const c = CHARACTERS[state.id];
+  el('whoName').textContent = state.all ? 'Вся труппа' : c.name;
+  el('whoRole').textContent = state.all ? CHARACTER_IDS.length + ' персонажей' : c.role;
+  el('play').textContent = state.playing ? 'Пауза' : 'Играть';
+  try { localStorage.setItem('vt-state', JSON.stringify({ id: state.id, clip: state.clip })); } catch {}
+};
+chips(el('chars'), CHARACTER_IDS.map(id => [id, CHARACTERS[id].name.split(' ')[0]]), 'id', k => { state.id = k; state.all = false; sync(); });
+chips(el('clips'), CLIP_IDS.map(id => [id, CLIPS[id].name]), 'clip', k => { state.clip = k; state.t = 0; sync(); });
+chips(el('emos'), [['', 'Как в анимации'], ...Object.keys(EMOTIONS).map(e => [e, EMO_RU[e] || e])], 'emo', k => { state.emo = k || null; sync(); });
+el('all').addEventListener('click', () => { state.all = !state.all; sync(); });
+el('play').addEventListener('click', () => { state.playing = !state.playing; sync(); });
+el('scrub').addEventListener('input', e => { state.playing = false; state.t = CLIPS[state.clip].duration * e.target.value / 1000; sync(); });
+el('speed').addEventListener('input', e => { state.speed = +e.target.value; el('speedV').textContent = state.speed.toFixed(1) + '×'; });
+sync();
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) state.speed = 0.5;
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const clip = CLIPS[state.clip];
+  if (state.playing) { state.t += dt * state.speed; if (state.t > clip.duration + (clip.loop ? 0 : 0.6)) state.t = 0; }
+  const tt = clip.loop ? state.t % clip.duration : Math.min(state.t, clip.duration);
+  CHARACTER_IDS.forEach((id, i) => {
+    const ch = cast[id], on = state.all || id === state.id;
+    ch.root.visible = on; if (!on) return;
+    ch.root.position.x = state.all ? (i - (CHARACTER_IDS.length - 1) / 2) * 30 : 0;
+    ch.update(clip, tt + (state.all ? i * 0.13 : 0));
+    if (state.emo) ch.setFace(state.emo);
+  });
+  el('scrub').value = Math.round(1000 * tt / clip.duration);
+  el('time').textContent = tt.toFixed(2) + ' / ' + clip.duration.toFixed(2) + ' с';
+  frameCamera(); st.render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
