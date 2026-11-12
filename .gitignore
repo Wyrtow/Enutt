@@ -34,3 +34,4 @@ production/remotion/out/
 videos/*/out/
 videos/*/audio/
 style_tests/anim/frames/
+videos/*/build/*_parts.txt
