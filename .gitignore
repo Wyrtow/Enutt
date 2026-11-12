@@ -33,3 +33,4 @@ node_modules/
 production/remotion/out/
 videos/*/out/
 videos/*/audio/
+style_tests/anim/frames/
