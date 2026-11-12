@@ -37,13 +37,13 @@ module.exports = {
       { frame: 'xwide' }, { loc: 'embankment', opt: night, frame: 'wide', cast: [] }, { loc: 'boiler_ext', opt: night, frame: 'wide', cast: [] }, { loc: 'street', opt: { ...night, moon: 1 }, frame: 'xwide', cast: [] }, { frame: 'wide', zoom: [1.0, 1.12] } ] },
   '006': { loc: 'apartment', opt: { time: 'night', state: 'ok', clock: '23:58' }, shots: [
       { loc: 'street', opt: night, frame: 'wide', cast: [M(500, 'walk', { x1: 1500, brows: .2 })], fx: SNOW, w: 1.1 },
-      { frame: 'wide', cast: [{ prop: 'lamp', x0: 1200, y: 170 }, M(560, 'lie', { y: G - 230 })] },
+      { frame: 'wide', cast: [{ prop: 'lamp', x0: 1200, y: 170 }, M(560, 'lie', { y: G - 190 })] },
       { frame: 'med', zoom: [1.45, 1.55], center: [760, 780] },
       { loc: 'city_aerial', opt: { time: 'dawn', state: 'ok' }, frame: 'xwide', cast: [], w: .9 },
       { frame: 'close', zoom: [1.6, 1.7], center: [700, 800] },
       { frame: 'wide', zoom: [1.05, 1.12] },
     ], inserts: [{ type: 'phone', time: '23:58', sub: 'вторник, 12 ноября', vm: '0:14 · не прослушано', at: 21, len: 8 }] },
-  '007': { loc: 'apartment', opt: { time: 'night', state: 'ok', clock: '03:17' }, cast: [{ prop: 'lamp', x0: 1200, y: 170, swing: 2, flick: 1 }, M(560, 'lie', { y: G - 230 })], shots: [
+  '007': { loc: 'apartment', opt: { time: 'night', state: 'ok', clock: '03:17' }, cast: [{ prop: 'lamp', x0: 1200, y: 170, swing: 2, flick: 1 }, M(560, 'lie', { y: G - 190 })], shots: [
       { frame: 'close', zoom: [2.1, 2.3], center: [1200, 300] }, { frame: 'close', zoom: [1.6, 1.7], center: [700, 800] }, { frame: 'wide', zoom: [1.0, 1.06] } ],
       quakes: [{ at: 3.5, amp: 5, len: 2.5 }, { at: 8, amp: 9, len: 3 }], fx: { dust: 1, dustFrom: 0 } },
   '008': { loc: 'apartment', opt: { ...quake, clock: '03:17' }, cast: [{ prop: 'lamp', x0: 1200, y: 170, swing: 4, flick: 1 }, M(820, 'protect')], shots: [

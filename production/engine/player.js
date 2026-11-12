@@ -46,6 +46,7 @@
     el.dataset.key = shot.key; el.innerHTML = '';
     const B = TL.bgs[shot.bg];
     for (const l of B.layers) {
+      if (l.name === 'fg' && shot.nofg) continue;
       const im = new Image(); im.src = (shot.dof && l.soft) ? l.soft : l.src; im.className = 'lay'; im.dataset.z = l.z; im.dataset.name = l.name;
       el.appendChild(im);
       if (l.name === 'hero') { const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.setAttribute('class', 'lay chars'); sv.setAttribute('viewBox', `0 0 ${BW} ${BH}`); sv.dataset.z = 1; el.appendChild(sv); }
@@ -126,7 +127,7 @@
     if (k === 'hold') { s.armB = 34; s.elbB = 20; }           // держит ребёнка за руку (рука вниз-вбок)
     if (k === 'holdup') { s.armB = 60; s.elbB = 10; s.lookY = -8; } // ребёнок тянет руку вверх
     if (k === 'sit' || k === 'kneel') { s.hipDY = k === 'sit' ? 120 : 140; s.footA = [x - 20 + 70 * F, 0]; s.footB = [x + 26 + 80 * F, 0]; s.turn = .85; }
-    if (k === 'lie') { s.lie = 1; s.blink = 1; s.mouth = 0; }
+    if (k === 'lie') { s.lie = 1; s.blink = a.awake ? s.blink : 1; s.mouth = 0; s.turn = .85; s.footA = [x - 26 * F, -14]; s.footB = [x - 6 * F, 0]; s.pitchA = 0; s.pitchB = 0; s.armA = -8; s.elbA = 20; s.armB = 6; s.elbB = 35; s.breath *= .5; }
     if (k === 'look_up') { s.lookY = -9; s.headTilt = -6 * F; s.brows = .7; }
     if (k === 'look_back') { s.lookX = -9 * F; s.headTilt = -5; s.turn = .6; }
     if (k === 'shout') { s.mouth = .7 + .3 * Math.abs(Math.sin(t * 7)); s.brows = .9; s.armA = -30; s.elbA = 60; s.armB = 30; s.elbB = -60; }

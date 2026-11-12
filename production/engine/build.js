@@ -74,7 +74,7 @@ for (let i = 0; i < scenes.length; i++) {
   if (!c.loc) continue;
   const key0 = bgKey(c.loc, c.opt || {});
   // разбиение на планы ~6–10 с, кадрировка по кругу
-  const plan = c.shots || null, durS = (b - a) / FPS; let lastCast = c.cast || null;
+  const plan = c.shots || null, durS = (b - a) / FPS; const lastCast = {};
   const n = plan ? plan.length : Math.max(1, Math.round(durS / (c.shotLen || 8)));
   for (let k = 0; k < n; k++) {
     const ws = plan ? plan.map(q => q.w || 1) : null, wsum = ws ? ws.reduce((x, y) => x + y, 0) : n;
@@ -82,7 +82,7 @@ for (let i = 0; i < scenes.length; i++) {
     const sa = a + Math.round((b - a) * cum(k)), sb = a + Math.round((b - a) * cum(k + 1));
     const p = plan ? plan[k] : {};
     const frame = p.frame || (c.frames || ['wide', 'med', 'close', 'med'])[k % (c.frames || [1, 2, 3, 4]).length] || 'wide';
-    const cast = (p.cast || (plan ? lastCast : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast = p.cast;
+    const locK = p.loc || c.loc; const cast = (p.cast || (plan ? lastCast[locK] : null) || c.cast || []).map(x => ({ ...x })); if (p.cast) lastCast[locK] = p.cast;
     const focus = cast.find(x => x.id === (p.focus || c.focus)) || cast[0];
     const fx_ = focus ? (focus.x1 !== undefined ? (focus.x0 + focus.x1) / 2 : focus.x0) : 1200;
     const kid = focus && ['sonya', 'timur'].includes(focus.who);
@@ -119,7 +119,7 @@ for (let i = 0; i < scenes.length; i++) {
     if (p.rise) to[1] -= p.rise;
     const roll = p.roll || c.roll || 0;
     const dof = p.dof ?? (frame === 'med' || frame === 'close' ? 1 : 0);
-    shots.push({ a: sa, b: sb, bg: key, key: key + ':' + i + ':' + k + (dof ? ':d' : ''), move: mv, dof, cast, fx: p.fx0 ? { ...p.fx } : { ...(c.fx || {}), ...(p.fx || {}) }, rim: c.rim,
+    shots.push({ a: sa, b: sb, bg: key, key: key + ':' + i + ':' + k + (dof ? ':d' : '') + (frame === 'wide' || frame === 'xwide' ? '' : ':n'), move: mv, dof, nofg: !(frame === 'wide' || frame === 'xwide'), cast, fx: p.fx0 ? { ...p.fx } : { ...(c.fx || {}), ...(p.fx || {}) }, rim: c.rim,
       cam: { from: [...from, roll], to: [...to, roll], ease: p.ease || 'smooth' },
       xin: (k === 0 && c.cut) ? 0 : 10, overlay: c.overlay || '' });
   }
