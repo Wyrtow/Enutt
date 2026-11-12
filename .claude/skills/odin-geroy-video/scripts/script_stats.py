@@ -53,7 +53,7 @@ check(0.25 <= short <= 0.42, f"фраз короче 5 слов: {short:.0%} (н
 check(longp < 0.03, f"фраз ≥ 20 слов: {longp:.1%} (норма < 3 %)")
 check(q <= 0.02, f"вопросов: {q:.1%} (≤ 2 %)")
 check(ex <= 0.02, f"восклицаний: {ex:.1%} (≤ 2 %)")
-check(30 <= quotes <= 60 or dur < 20 * 60, f"реплик в «ёлочках»: {quotes} (30–60)")
+check(30 <= quotes <= 100, f"реплик в «ёлочках»: {quotes} (30–100: у канала 4 голоса, диалоги — сильная сторона)")
 check(nums / max(dur / 60, 1) >= 0.8, f"чисел в минуту: {nums / max(dur / 60, 1):.1f} (≈ 1–1,5)")
 low = text.lower()
 check('меня зовут марк' in ' '.join(voice[:12]).lower(), "Марк представлен в начале")
@@ -61,12 +61,12 @@ check('я закрыл глаза' in low[-1500:], "фирменное аутр�
 check(not re.search(r'правило (первое|\d+)', low), "нет «правил» в стиле чужого формата")
 
 print("\nГлавы (тайм-код старта по оценке):")
-gl = [c for c in chapters if c['title'].upper().startswith('ГЛАВА')]
+gl = [c for c in chapters if c['title'].upper().startswith(('ГЛАВА', 'СЕРИЯ'))]
 for c in chapters:
     t = c['start_words'] / wpm * 60 + c['pauses_before']
     print(f"  {fmt(t):>6}  {c['title']}  — {c['words']} слов ≈ {c['words'] / wpm:.1f} мин")
-check(5 <= len(gl) <= 8, f"глав: {len(gl)} (норма 5–8)")
+check(5 <= len(gl) <= 8, f"серий: {len(gl)} (норма 5–8)")
 for c in gl:
     m = c['words'] / wpm
     if not (2.5 <= m <= 6.5):
-        check(False, f"длина главы «{c['title']}» {m:.1f} мин (норма 3–6)")
+        check(False, f"длина главы «{c['title']}» {m:.1f} мин (норма 3–6,5)")
