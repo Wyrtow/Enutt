@@ -1,0 +1,4 @@
+file '/home/user/Enutt/videos/01_vtoroy_tolchok/build/ep2_part0.mp4'
+file '/home/user/Enutt/videos/01_vtoroy_tolchok/build/ep2_part1.mp4'
+file '/home/user/Enutt/videos/01_vtoroy_tolchok/build/ep2_part2.mp4'
+file '/home/user/Enutt/videos/01_vtoroy_tolchok/build/ep2_part3.mp4'
