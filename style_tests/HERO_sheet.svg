@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="bigglow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="30"/></filter>
+  <filter id="soft"><feGaussianBlur stdDeviation="3"/></filter>
+  <filter id="dof"><feGaussianBlur stdDeviation="5"/></filter>
+  <filter id="dust"><feTurbulence type="fractalNoise" baseFrequency=".008 .02" numOctaves="3" seed="4"/><feColorMatrix values="0 0 0 0 .62  0 0 0 0 .56  0 0 0 0 .74  0 0 0 1.6 -.55"/><feGaussianBlur stdDeviation="2"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0"/></filter>
+  <radialGradient id="vig" cx=".5" cy=".5" r=".72"><stop offset=".5" stop-color="#05040c" stop-opacity="0"/><stop offset="1" stop-color="#05040c" stop-opacity=".88"/></radialGradient>
+  <linearGradient id="hoodG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a5f86"/><stop offset=".55" stop-color="#2b4a6d"/><stop offset="1" stop-color="#1a2f4a"/></linearGradient>
+  <linearGradient id="pantG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a2d44"/><stop offset="1" stop-color="#171a2c"/></linearGradient>
+  <linearGradient id="skinG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d2b0"/><stop offset="1" stop-color="#d9a882"/></linearGradient>
+  <linearGradient id="scarfG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffa04a"/><stop offset="1" stop-color="#e2611c"/></linearGradient>
+  <linearGradient id="hairG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a22"/><stop offset="1" stop-color="#22160f"/></linearGradient>
+
+   <radialGradient id="bg" cx=".5" cy=".45" r=".8"><stop offset="0" stop-color="#2a2752"/><stop offset="1" stop-color="#0c0b1d"/></radialGradient></defs>
+   <rect width="1920" height="1080" fill="url(#bg)"/>
+   <g transform="translate(420,900) scale(1.15,1.15)">
+   <ellipse cx="0" cy="2" rx="70" ry="11" fill="#000" opacity=".5"/>
+   <!-- ноги: прямые джинсы -->
+   <rect x="-36" y="-320" width="32" height="312" rx="12" fill="url(#pantG)"/>
+   <rect x="4" y="-320" width="32" height="312" rx="12" fill="url(#pantG)" transform="rotate(2.5 20 -320)"/>
+   <!-- кроссовки, крупные -->
+   <path d="M-46,-18 h46 v18 h-54 a10 10 0 0 1 8,-18Z" fill="#e4e0d8"/><rect x="-54" y="-4" width="56" height="5" rx="2" fill="#b9b3a8"/>
+   <path d="M10,-16 h44 a10 10 0 0 1 8,16 h-52Z" fill="#e4e0d8"/><rect x="10" y="-2" width="54" height="5" rx="2" fill="#b9b3a8"/>
+   <!-- худи: широкие плечи, сужается к поясу, заканчивается на бёдрах -->
+   <path d="M-66,-466 Q0,-490 66,-466 Q72,-420 62,-380 L54,-300 Q0,-288 -54,-300 L-62,-380 Q-72,-420 -66,-466Z" fill="url(#hoodG)"/>
+   <rect x="-56" y="-316" width="112" height="22" rx="10" fill="#203a58"/>
+   <path d="M64,-462 Q70,-420 60,-380 L52,-304" stroke="#ffcf8a" stroke-width="5" fill="none" opacity=".75" filter="url(#soft)"/>
+   <path d="M-34,-372 h68 l-6,42 h-56z" fill="#24405f"/>
+   <!-- капюшон, сложен за шеей -->
+   <path d="M-40,-486 Q0,-512 40,-486 Q34,-462 0,-460 Q-34,-462 -40,-486Z" fill="#2a4769"/>
+   <!-- руки-трубки, от плеч -->
+   <path d="M-62,-456 Q-86,-380 -78,-300" stroke="#2f5279" stroke-width="28" stroke-linecap="round" fill="none"/>
+   <circle cx="-78" cy="-292" r="15" fill="url(#skinG)"/>
+   <path d="M62,-456 Q86,-380 78,-300" stroke="#24405f" stroke-width="28" stroke-linecap="round" fill="none"/><circle cx="78" cy="-292" r="15" fill="url(#skinG)"/>
+   <!-- шарф -->
+   <path d="M-38,-488 Q0,-470 38,-488 Q42,-474 38,-458 Q0,-444 -38,-458 Q-42,-474 -38,-488Z" fill="url(#scarfG)"/>
+   <path d="M16,-462 Q26,-424 32,-392 L16,-394 Q12,-424 4,-460Z" fill="url(#scarfG)"/>
+   <!-- шея и голова: квадратнее челюсть -->
+   <rect x="-14" y="-506" width="28" height="26" fill="#d9a882"/>
+   <path d="M-40,-570 Q-42,-606 0,-608 Q42,-606 40,-570 L38,-530 Q34,-502 0,-498 Q-34,-502 -38,-530Z" fill="url(#skinG)"/>
+   <!-- лёгкая щетина -->
+   <path d="M-37,-532 Q-32,-502 0,-498 Q32,-502 37,-532 Q20,-516 0,-516 Q-20,-516 -37,-532Z" fill="#6b4a3a" opacity=".28"/>
+   <!-- ухо -->
+   <ellipse cx="-41" cy="-552" rx="7" ry="12" fill="#d9a882"/>
+   <!-- короткая стрижка, чёлка набок, без пучка -->
+   <path d="M-44,-562 Q-48,-616 -6,-622 Q40,-626 46,-584 Q46,-566 42,-558 Q38,-584 20,-588 Q6,-576 -14,-584 Q-30,-586 -36,-566Z" fill="url(#hairG)"/>
+   <path d="M-6,-622 Q22,-632 38,-612 Q26,-616 14,-610Z" fill="url(#hairG)"/>
+   <!-- лицо -->
+   <circle cx="-13" cy="-556" r="5.5" fill="#15131c"/><circle cx="15" cy="-556" r="5.5" fill="#15131c"/>
+   <path d="M-26,-572 l18,-3 M8,-575 l18,3" stroke="#22160f" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+   <path d="M2,-542 q-3,8 2,10" stroke="#b9876a" stroke-width="3" fill="none" stroke-linecap="round"/>
+   <path d="M-8,-520 h16" stroke="#8a5240" stroke-width="3.5" stroke-linecap="round"/>
+   <path d="M38,-590 Q46,-552 36,-520" stroke="#ffcf8a" stroke-width="4" fill="none" opacity=".7" filter="url(#soft)"/>
+  </g>
+   <g transform="translate(960,900) scale(1.15,1.15)">
+   <ellipse cx="0" cy="2" rx="70" ry="11" fill="#000" opacity=".5"/>
+   <!-- ноги: прямые джинсы -->
+   <rect x="-36" y="-320" width="32" height="312" rx="12" fill="url(#pantG)"/>
+   <rect x="4" y="-320" width="32" height="312" rx="12" fill="url(#pantG)" transform="rotate(2.5 20 -320)"/>
+   <!-- кроссовки, крупные -->
+   <path d="M-46,-18 h46 v18 h-54 a10 10 0 0 1 8,-18Z" fill="#e4e0d8"/><rect x="-54" y="-4" width="56" height="5" rx="2" fill="#b9b3a8"/>
+   <path d="M10,-16 h44 a10 10 0 0 1 8,16 h-52Z" fill="#e4e0d8"/><rect x="10" y="-2" width="54" height="5" rx="2" fill="#b9b3a8"/>
+   <!-- худи: широкие плечи, сужается к поясу, заканчивается на бёдрах -->
+   <path d="M-66,-466 Q0,-490 66,-466 Q72,-420 62,-380 L54,-300 Q0,-288 -54,-300 L-62,-380 Q-72,-420 -66,-466Z" fill="url(#hoodG)"/>
+   <rect x="-56" y="-316" width="112" height="22" rx="10" fill="#203a58"/>
+   <path d="M64,-462 Q70,-420 60,-380 L52,-304" stroke="#ffcf8a" stroke-width="5" fill="none" opacity=".75" filter="url(#soft)"/>
+   <path d="M-34,-372 h68 l-6,42 h-56z" fill="#24405f"/>
+   <!-- капюшон, сложен за шеей -->
+   <path d="M-40,-486 Q0,-512 40,-486 Q34,-462 0,-460 Q-34,-462 -40,-486Z" fill="#2a4769"/>
+   <!-- руки-трубки, от плеч -->
+   <path d="M-62,-456 Q-86,-380 -78,-300" stroke="#2f5279" stroke-width="28" stroke-linecap="round" fill="none"/>
+   <circle cx="-78" cy="-292" r="15" fill="url(#skinG)"/>
+   <path d="M62,-456 Q110,-470 116,-540" stroke="#2b4a6d" stroke-width="28" stroke-linecap="round" fill="none"/><circle cx="116" cy="-550" r="15" fill="url(#skinG)"/>
+   <!-- шарф -->
+   <path d="M-38,-488 Q0,-470 38,-488 Q42,-474 38,-458 Q0,-444 -38,-458 Q-42,-474 -38,-488Z" fill="url(#scarfG)"/>
+   <path d="M16,-462 Q26,-424 32,-392 L16,-394 Q12,-424 4,-460Z" fill="url(#scarfG)"/>
+   <!-- шея и голова: квадратнее челюсть -->
+   <rect x="-14" y="-506" width="28" height="26" fill="#d9a882"/>
+   <path d="M-40,-570 Q-42,-606 0,-608 Q42,-606 40,-570 L38,-530 Q34,-502 0,-498 Q-34,-502 -38,-530Z" fill="url(#skinG)"/>
+   <!-- лёгкая щетина -->
+   <path d="M-37,-532 Q-32,-502 0,-498 Q32,-502 37,-532 Q20,-516 0,-516 Q-20,-516 -37,-532Z" fill="#6b4a3a" opacity=".28"/>
+   <!-- ухо -->
+   <ellipse cx="-41" cy="-552" rx="7" ry="12" fill="#d9a882"/>
+   <!-- короткая стрижка, чёлка набок, без пучка -->
+   <path d="M-44,-562 Q-48,-616 -6,-622 Q40,-626 46,-584 Q46,-566 42,-558 Q38,-584 20,-588 Q6,-576 -14,-584 Q-30,-586 -36,-566Z" fill="url(#hairG)"/>
+   <path d="M-6,-622 Q22,-632 38,-612 Q26,-616 14,-610Z" fill="url(#hairG)"/>
+   <!-- лицо -->
+   <circle cx="-8" cy="-556" r="5.5" fill="#15131c"/><circle cx="20" cy="-556" r="5.5" fill="#15131c"/>
+   <path d="M-26,-572 l18,-3 M8,-575 l18,3" stroke="#22160f" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+   <path d="M7,-542 q-3,8 2,10" stroke="#b9876a" stroke-width="3" fill="none" stroke-linecap="round"/>
+   <path d="M-8,-520 h16" stroke="#8a5240" stroke-width="3.5" stroke-linecap="round"/>
+   <path d="M38,-590 Q46,-552 36,-520" stroke="#ffcf8a" stroke-width="4" fill="none" opacity=".7" filter="url(#soft)"/>
+  </g>
+   <g transform="translate(1500,900) scale(-1.15,1.15)">
+   <ellipse cx="0" cy="2" rx="70" ry="11" fill="#000" opacity=".5"/>
+   <!-- ноги: прямые джинсы -->
+   <rect x="-36" y="-320" width="32" height="312" rx="12" fill="url(#pantG)"/>
+   <rect x="4" y="-320" width="32" height="312" rx="12" fill="url(#pantG)" transform="rotate(2.5 20 -320)"/>
+   <!-- кроссовки, крупные -->
+   <path d="M-46,-18 h46 v18 h-54 a10 10 0 0 1 8,-18Z" fill="#e4e0d8"/><rect x="-54" y="-4" width="56" height="5" rx="2" fill="#b9b3a8"/>
+   <path d="M10,-16 h44 a10 10 0 0 1 8,16 h-52Z" fill="#e4e0d8"/><rect x="10" y="-2" width="54" height="5" rx="2" fill="#b9b3a8"/>
+   <!-- худи: широкие плечи, сужается к поясу, заканчивается на бёдрах -->
+   <path d="M-66,-466 Q0,-490 66,-466 Q72,-420 62,-380 L54,-300 Q0,-288 -54,-300 L-62,-380 Q-72,-420 -66,-466Z" fill="url(#hoodG)"/>
+   <rect x="-56" y="-316" width="112" height="22" rx="10" fill="#203a58"/>
+   <path d="M64,-462 Q70,-420 60,-380 L52,-304" stroke="#9fc4ff" stroke-width="5" fill="none" opacity=".75" filter="url(#soft)"/>
+   <path d="M-34,-372 h68 l-6,42 h-56z" fill="#24405f"/>
+   <!-- капюшон, сложен за шеей -->
+   <path d="M-40,-486 Q0,-512 40,-486 Q34,-462 0,-460 Q-34,-462 -40,-486Z" fill="#2a4769"/>
+   <!-- руки-трубки, от плеч -->
+   <path d="M-62,-456 Q-86,-380 -78,-300" stroke="#2f5279" stroke-width="28" stroke-linecap="round" fill="none"/>
+   <circle cx="-78" cy="-292" r="15" fill="url(#skinG)"/>
+   <path d="M62,-456 Q86,-380 78,-300" stroke="#24405f" stroke-width="28" stroke-linecap="round" fill="none"/><circle cx="78" cy="-292" r="15" fill="url(#skinG)"/>
+   <!-- шарф -->
+   <path d="M-38,-488 Q0,-470 38,-488 Q42,-474 38,-458 Q0,-444 -38,-458 Q-42,-474 -38,-488Z" fill="url(#scarfG)"/>
+   <path d="M16,-462 Q26,-424 32,-392 L16,-394 Q12,-424 4,-460Z" fill="url(#scarfG)"/>
+   <!-- шея и голова: квадратнее челюсть -->
+   <rect x="-14" y="-506" width="28" height="26" fill="#d9a882"/>
+   <path d="M-40,-570 Q-42,-606 0,-608 Q42,-606 40,-570 L38,-530 Q34,-502 0,-498 Q-34,-502 -38,-530Z" fill="url(#skinG)"/>
+   <!-- лёгкая щетина -->
+   <path d="M-37,-532 Q-32,-502 0,-498 Q32,-502 37,-532 Q20,-516 0,-516 Q-20,-516 -37,-532Z" fill="#6b4a3a" opacity=".28"/>
+   <!-- ухо -->
+   <ellipse cx="-41" cy="-552" rx="7" ry="12" fill="#d9a882"/>
+   <!-- короткая стрижка, чёлка набок, без пучка -->
+   <path d="M-44,-562 Q-48,-616 -6,-622 Q40,-626 46,-584 Q46,-566 42,-558 Q38,-584 20,-588 Q6,-576 -14,-584 Q-30,-586 -36,-566Z" fill="url(#hairG)"/>
+   <path d="M-6,-622 Q22,-632 38,-612 Q26,-616 14,-610Z" fill="url(#hairG)"/>
+   <!-- лицо -->
+   <circle cx="-9" cy="-556" r="5.5" fill="#15131c"/><circle cx="19" cy="-556" r="5.5" fill="#15131c"/>
+   <path d="M-26,-572 l18,-3 M8,-575 l18,3" stroke="#22160f" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+   <path d="M6,-542 q-3,8 2,10" stroke="#b9876a" stroke-width="3" fill="none" stroke-linecap="round"/>
+   <path d="M-8,-520 h16" stroke="#8a5240" stroke-width="3.5" stroke-linecap="round"/>
+   <path d="M38,-590 Q46,-552 36,-520" stroke="#9fc4ff" stroke-width="4" fill="none" opacity=".7" filter="url(#soft)"/>
+  </g>
+   <g font-family="Inter" font-weight="800" font-size="34" fill="#cfc8ee" text-anchor="middle">
+    <text x="420" y="990">СТОИТ</text><text x="960" y="990">ТЯНЕТСЯ</text><text x="1500" y="990">ПОВОРОТ</text></g>
+   <text x="70" y="100" font-family="Inter" font-weight="900" font-size="54" fill="#fff">МАКС · 25 ЛЕТ</text>
+   <text x="70" y="148" font-family="Inter" font-weight="600" font-size="30" fill="#a9a3cc">главный герой канала «Один герой» · фирменная деталь — оранжевый шарф</text>
+   <rect width="1920" height="1080" fill="url(#vig)" opacity=".6"/>
+  </svg>
