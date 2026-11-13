@@ -36,3 +36,6 @@ videos/*/audio/
 style_tests/anim/frames/
 videos/*/build/*_parts.txt
 videos/*/build/full_list.txt
+videos/*/build/tr_*.mp4
+videos/*/build/short_*.mp4
+videos/*/build/tr_list.txt

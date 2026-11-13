@@ -9,6 +9,8 @@ const opt = Object.fromEntries(flags.map(f => f.replace(/^--/, '').split('=')));
 const B = path.join(path.resolve(VD), 'build'), BGD = path.join(B, 'bg'); fs.mkdirSync(BGD, { recursive: true });
 const tl = JSON.parse(fs.readFileSync(path.join(B, `ep${EP}.timeline.json`), 'utf8'));
 const ENG = __dirname;
+if (opt.noui) { tl.pills = []; tl.cards = []; tl.inserts = []; }
+const DSF = +(opt.dsf || 1);
 
 async function prerender(browser) {
   const p = await browser.newPage({ viewport: { width: BW, height: BH }, deviceScaleFactor: 1.5 });
@@ -30,7 +32,7 @@ async function prerender(browser) {
 }
 async function worker(id, frames, outFile) {
   const browser = await chromium.launch({ args: ['--allow-file-access-from-files', '--disable-web-security'] });
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: DSF });
   await page.goto('file://' + path.join(ENG, 'blank.html'));
   await page.addScriptTag({ path: path.join(ENG, 'rig.js') });
   await page.addScriptTag({ path: path.join(ENG, 'player.js') });
@@ -62,7 +64,7 @@ async function worker(id, frames, outFile) {
   const vid = path.join(B, `ep${EP}_video.mp4`);
   execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(B, `ep${EP}_parts.txt`), '-c', 'copy', vid]);
   const mix = fs.existsSync(path.join(B, `ep${EP}.mix.wav`)) ? path.join(B, `ep${EP}.mix.wav`) : path.join(B, `ep${EP}.voice.wav`);
-  const fin = path.join(B, opt.range ? `ep${EP}_${ra}-${rb}.mp4` : `ep${EP}.mp4`);
+  const fin = path.join(B, opt.out || (opt.range ? `ep${EP}_${ra}-${rb}.mp4` : `ep${EP}.mp4`));
   execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', vid, '-ss', String(ra / tl.fps), '-i', mix, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-shortest', fin]);
   console.log(`готово: ${fin} · ${(all.length / ((Date.now() - t0) / 1000)).toFixed(1)} к/с`);
 })();
